@@ -1,0 +1,147 @@
+/******************************************************************************
+* ShowAppBanner shows the app name, company, and graphic.
+******************************************************************************/
+void ShowAppBanner()
+{
+     //Show the text on the screen
+     TextOut(0, LCD_LINE1, " SHArK Interface", true);
+     TextOut(0, LCD_LINE2, "  RDH2 Science", false);
+     TextOut(0, LCD_LINE3, "    v1.0.7", false);
+
+     //Draw a pretty shark graphic
+     int top = 32;
+     int left = 18;
+     LineOut(left + 31, top, left + 34, top, false);
+     LineOut(left + 29, top - 1, left + 34, top - 1, false);
+     LineOut(left + 28, top - 2, left + 33, top - 2, false);
+     LineOut(left + 27, top - 3, left + 33, top - 3, false);
+     LineOut(left + 25, top - 4, left + 32, top - 4, false);
+     LineOut(left + 24, top - 5, left + 32, top - 5, false);
+     LineOut(left + 60, top - 5, left + 61, top - 5, false);
+     LineOut(left + 22, top - 6, left + 33, top - 6, false);
+     LineOut(left + 58, top - 6, left + 63, top - 6, false);
+     LineOut(left + 20, top - 7, left + 33, top - 7, false);
+     LineOut(left + 56, top - 7, left + 63, top - 7, false);
+     LineOut(left + 13, top - 8, left + 35, top - 8, false);
+     LineOut(left + 55, top - 8, left + 62, top - 8, false);
+     LineOut(left + 9, top - 9, left + 37, top - 9, false);
+     LineOut(left + 54, top - 9, left + 61, top - 9, false);
+     LineOut(left + 5, top - 10, left + 39, top - 10, false);
+     LineOut(left + 45, top - 10, left + 47, top - 10, false);
+     LineOut(left + 53, top - 10, left + 59, top - 10, false);
+     LineOut(left + 3, top - 11, left + 48, top - 11, false);
+     LineOut(left + 52, top - 11, left + 58, top - 11, false);
+     LineOut(left + 1, top - 12, left + 48, top - 12, false);
+     LineOut(left + 51, top - 12, left + 57, top - 12, false);
+     LineOut(left, top - 13, left + 56, top - 13, false);
+     LineOut(left, top - 14, left + 56, top - 14, false);
+     LineOut(left + 2, top - 15, left + 56, top - 15, false);
+     LineOut(left + 6, top - 16, left + 56, top - 16, false);
+     LineOut(left + 6, top - 17, left + 46, top - 17, false);
+     LineOut(left + 46, top - 17, left + 49, top - 17, false);
+     LineOut(left + 51, top - 17, left + 57, top - 17, false);
+     LineOut(left + 8, top - 18, left + 40, top - 18, false);
+     LineOut(left + 52, top - 18, left + 58, top - 18, false);
+     LineOut(left + 15, top - 19, left + 24, top - 19, false);
+     LineOut(left + 31, top - 19, left + 34, top - 19, false);
+     LineOut(left + 53, top - 19, left + 58, top - 19, false);
+     LineOut(left + 17, top - 20, left + 23, top - 20, false);
+     LineOut(left + 55, top - 20, left + 59, top - 20, false);
+     LineOut(left + 18, top - 21, left + 23, top - 21, false);
+     LineOut(left + 56, top - 21, left + 59, top - 21, false);
+     LineOut(left + 19, top - 22, left + 24, top - 22, false);
+     LineOut(left + 57, top - 22, left + 59, top - 22, false);
+     LineOut(left + 20, top - 23, left + 25, top - 23, false);
+     LineOut(left + 21, top - 24, left + 26, top - 24, false);
+     LineOut(left + 22, top - 25, left + 26, top - 25, false);
+}
+
+
+/******************************************************************************
+* task main is the main processing loop of the program.  It listens on a
+* Mailbox for input from an outside program.
+******************************************************************************/
+task main()
+{
+     //Show text on the screen
+     ShowAppBanner();
+     
+     while (true)
+     {
+          //Declare the variable to hold the message
+          string input;
+          string separator = "|";
+           
+          //Wait to receive a message
+          ReceiveMessage(0, true, input);
+
+          //Get the length of the string for later calculations
+          int inputLen = StrLen(input);
+          
+          //If the string was received properly, do the work
+          if (inputLen > 0)
+          {
+               //Declare variables to hold the input and ultimate output
+               byte motor = 0;
+               int power = 25;
+               int degrees = 90;
+               string output = input;
+
+               //Iterate through the string and get the parts
+               for (int i = 0; i < 3; i++)
+               {
+                    //Declare a separator index
+                    int sepIndex = 0;
+
+                    //Iterate through the string and find the separator
+                    for (int j = 0; j < inputLen; j++)
+                    {
+                         //If the current character is the separator,
+                         //set the value and break;
+                         if (SubStr(input, j, 1) == separator)
+                         {
+                              sepIndex = j;
+                              break;
+                         }
+                    }
+
+                    //If no separator was found, set the sepIndex
+                    //to the length of the string
+                    if (sepIndex == 0)
+                         sepIndex = inputLen;
+
+                    //Get the current string -- switch on the
+                    //index to determine the right one
+                    string currInput = SubStr(input, 0, sepIndex);
+                    switch (i)
+                    {
+                         case 0:
+                              motor = StrToNum(currInput);
+                              break;
+                         
+                         case 1:
+                              power = StrToNum(currInput);
+                              break;
+
+                         case 2:
+                              degrees = StrToNum(currInput);
+                              break;
+                    }
+
+                    //Get the remainder string
+                    input = SubStr(input, sepIndex + 1, inputLen);
+               }
+
+               //Finally, move the motor
+               RotateMotor(motor, power, degrees);
+               
+               //Call the KeepAlive for the brick not to shut down
+               KeepAliveType ka;
+               SysKeepAlive(ka);
+
+               //Send a Message back to the caller
+               SendMessage(10, output);
+          }
+     }
+}
+

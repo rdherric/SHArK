@@ -1,0 +1,490 @@
+C51 COMPILER V8.18   MAIN                                                                  01/01/2011 16:04:21 PAGE 1   
+
+
+C51 COMPILER V8.18, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN Main.OBJ
+COMPILER INVOKED BY: C:\SiLabs\MCU\IDEfiles\C51\BIN\C51.exe Main.c DB OE BR INCDIR(c:\SiLabs\MCU\Inc)
+
+line level    source
+
+   1          //-----------------------------------------------------------------------------
+   2          // Main.c
+   3          //-----------------------------------------------------------------------------
+   4          //
+   5          // Program Description:
+   6          //
+   7          // Main code file for the SHArK Firmware.  Does the work that should be 
+   8          // performed for basic potentiostat operation of the hardware.
+   9          //
+  10          // Target:         C8051F32x
+  11          // Tool chain:     Keil C51 7.50 / Keil EVAL C51
+  12          //                 Silicon Laboratories IDE version 2.6
+  13          // Project Name:   SHArK
+  14          
+  15          //-----------------------------------------------------------------------------
+  16          // Includes
+  17          //-----------------------------------------------------------------------------
+  18          
+  19          #include <c8051f320.h>
+  20          #include "USBRegister.h"
+  21          #include "Main.h"
+*** ERROR C131 IN LINE 207 OF MAIN.H: 'BYTE': duplicate function-parameter
+*** ERROR C141 IN LINE 207 OF MAIN.H: syntax error near '*', expected ')'
+*** ERROR C131 IN LINE 209 OF MAIN.H: 'BYTE': duplicate function-parameter
+*** ERROR C141 IN LINE 209 OF MAIN.H: syntax error near '*', expected ')'
+  22          #include "USBDescriptor.h"
+*** ERROR C141 IN LINE 21 OF USBDESCRIPTOR.H: syntax error near 'U8'
+*** ERROR C129 IN LINE 21 OF USBDESCRIPTOR.H: missing ';' before 'bLength'
+  23          
+  24          //-----------------------------------------------------------------------------
+  25          // Globals
+  26          //-----------------------------------------------------------------------------
+  27          
+  28          idata BYTE Out_Packet[64];             // Last packet received from host
+  29          idata BYTE In_Packet[64];              // Next packet to sent to host
+  30          int Writing_to_DAC = 0;                            // Boolean: still need to write >=1 byte via SPI
+  31          int Writing_to_ADC = 0;                            // Boolean: still need to write >=1 byte via SPI
+  32          int SPI_DAC_Bytes = 0;                             // No. of bytes to/from DAC: 0-3
+  33          int SPI_ADC_Bytes = 0;                             // No. of bytes to/from ADC: 0-2
+  34          int latest_ADC_HighByte;                                // High ADC measurement byte
+  35          int latest_ADC_LowByte;                                 // Low ADC measurement byte
+  36          
+  37          //-----------------------------------------------------------------------------
+  38          // Main Routine
+  39          //-----------------------------------------------------------------------------
+  40          void main(void)
+  41          {
+  42             PCA0MD &= ~0x40;                    // Disable Watchdog timer
+  43          
+  44             Sysclk_Init();                      // Initialize oscillator
+  45             Port_Init();                        // Initialize crossbar and GPIO
+  46             SPI_Init();                                             // Initialize the Chip interface
+  47             DAC_Init();                                             // Initialize the DAC
+  48             ADC_Init();                                             // Initialize the ADC
+  49             Usb0_Init();                        // Initialize USB0
+C51 COMPILER V8.18   MAIN                                                                  01/01/2011 16:04:21 PAGE 2   
+
+  50          
+  51             while (1) ;
+  52          }
+  53          
+  54          
+  55          //-----------------------------------------------------------------------------
+  56          // Initialization Subroutines
+  57          //-----------------------------------------------------------------------------
+  58          
+  59          //-----------------------------------------------------------------------------
+  60          // Sysclk_Init
+  61          //-----------------------------------------------------------------------------
+  62          //
+  63          // Return Value : None
+  64          // Parameters   : None
+  65          //
+  66          // Initialize the system clock and USB clock
+  67          //
+  68          //-----------------------------------------------------------------------------
+  69          void Sysclk_Init(void)
+  70          {
+  71                  //Variable declarations
+  72                  unsigned char delay = 100;
+  73          
+  74                  //Configure the internal oscillator
+  75                  //for its maximum frequency
+  76                  OSCICN = 0x83;
+  77          
+  78                  //Select internal oscillator as input
+  79                  //to Clock Multiplier
+  80                  CLKMUL = 0x00;
+  81          
+  82                  //Enable the Clock Multiplier
+  83                  CLKMUL |= 0x80;
+  84          
+  85                  //Delay for a few us while the Clock
+  86                  //gets set up...
+  87                  while (delay--);
+  88          
+  89                  //Initialize the Clock Multiplier
+  90                  CLKMUL |= 0xC0;
+  91          
+  92                  //Wait for the multiplier to lock
+  93                  while ((CLKMUL & MULRDY) != MULRDY) ;
+  94          
+  95                  //Set the USB and SYS clocks
+  96                  CLKSEL = 0x02;          // USB clock = 4*(Int Osc)
+  97                                                          // Sys clock = 4*(Int Osc)/2
+  98          
+  99                  //Enable missing clock detector -- required
+ 100                  //for USB
+ 101                  RSTSRC = 0x04;
+ 102          }
+ 103          
+ 104          
+ 105          //-----------------------------------------------------------------------------
+ 106          // PORT_Init
+ 107          //-----------------------------------------------------------------------------
+ 108          //
+ 109          // Return Value: none
+ 110          // Parameters:   none
+ 111          //
+C51 COMPILER V8.18   MAIN                                                                  01/01/2011 16:04:21 PAGE 3   
+
+ 112          // Configure the Crossbar and GPIO ports.
+ 113          //
+ 114          // P0.0 - SCK (SPI)
+ 115          // P0.1 - MISO (SPI)
+ 116          // P0.2 - MOSI (SPI)
+ 117          // P0.3 - Motor 2 Direction (Stepper Motor Driver)
+ 118          // P0.4 - Motor 2 Step (Stepper Motor Driver)
+ 119          // P0.5 - Not Driver Enable (Stepper Motor Driver)
+ 120          // P0.6 - Motor 1 Direction (Stepper Motor Driver)
+ 121          // P0.7 - Motor 1 Step (Stepper Motor Driver)
+ 122          // P1.0 - In TTL
+ 123          // P1.1 - Out TTL
+ 124          // P1.2 - Laser Power On/Off
+ 125          // P1.3 - N/C
+ 126          // P1.4 - Not DAC CS (SPI)
+ 127          // P1.5 - N/C
+ 128          // P1.6 - N/C
+ 129          // P1.7 - Calibration (logical)
+ 130          // P2.0 - Positive Current (logical)
+ 131          // P2.1 - Not ADC CS (SPI)
+ 132          // P2.2 - N/C (LED, push-pull, temporary for testing purposes)
+ 133          // P2.3 - Output Enable
+ 134          // P2.4 - N/C
+ 135          // P2.5 - N/C
+ 136          // P2.6 - Not RAM CS (SPI)
+ 137          // P2.7 - Not RAM Hold
+ 138          // P3.0 - N/C
+ 139          //
+ 140          //-----------------------------------------------------------------------------
+ 141          void Port_Init (void)
+ 142          {
+ 143                  // Set all port pins as NOT analog inputs.
+ 144                  P0MDIN = 0xFF;
+ 145                  P1MDIN = 0xFF;
+ 146                  P2MDIN = 0xFF;
+ 147                  P3MDIN = 0xFF;
+ 148          
+ 149                  // Select push/pull for all port pins
+ 150                  P0MDOUT = 0xFF;
+ 151                  P1MDOUT = 0xFF;
+ 152                  P2MDOUT = 0xFF;
+ 153                  P3MDOUT = 0xFF;
+ 154          
+ 155                  // Select pins to be skipped by port crossbar
+ 156                  P0SKIP = 0x00;
+ 157                  P1SKIP = 0x00;
+ 158                  P2SKIP = 0x00;
+ 159          //      P0SKIP = 0xF8;                          // Don't skip the 3 wires for SPI
+ 160          //      P1SKIP = 0xFF;
+ 161          //      P2SKIP = 0xFF;
+ 162          
+ 163                  // Assign port pins to peripherals using the port crossbar (p. 131)
+ 164                  XBR0 = 0x02;                            // Only SPI selected, automatically assigned:
+ 165                                                                          // SCK  --> P0.0
+ 166                                                                          // MISO --> P0.1
+ 167                                                                          // MOSI --> P0.2
+ 168                  XBR1 = 0x40;                            // Enable crossbar and weak pull-ups
+ 169          
+ 170          
+ 171                  // Initialize the potentiostat state
+ 172                  // 1. the SPI Not Chip Select ports to high (P1.4, P2.1, P2.6)
+ 173                  // 2. the stepper motor Not Enable to high (P0.5)
+C51 COMPILER V8.18   MAIN                                                                  01/01/2011 16:04:21 PAGE 4   
+
+ 174                  // 3. the stepper motors "step" ports to low (P0.4, P0.7)
+ 175                  // 4. the laser power low (P1.2)
+ 176                  // 5. the Calibration signal to low (P1.7)
+ 177                  // 6. the current direction signal Positive to high (P2.0)
+ 178                  // 7. the Output Enable to low (P2.3)
+ 179                  // 8. the Not RAM Hold to high (P2.7)
+ 180          //      P0 = 0x20;                                      // 0x20 = 0010 0000b
+ 181          //      P1 = 0x10;                                      // 0x10 = 0001 0000b
+ 182          //      P2 = 0xC3;                                      // 0xC3 = 1100 0011b
+ 183                  POLL_WRITE_BYTE(bNotADCCS, 1);
+ 184                  POLL_WRITE_BYTE(bNotDACCS, 1);
+ 185                  POLL_WRITE_BYTE(bNotRAMCS, 1);
+ 186                  POLL_WRITE_BYTE(bNotRAMHold, 1);
+ 187                  POLL_WRITE_BYTE(bMtrDrvrEn, 1);                 // Enable/disable (0/1) stepper motor driver
+ 188                                                                                                  // A 0 causes current from +12 V to flow!
+ 189                  POLL_WRITE_BYTE(bMtr1Dir, 0);
+ 190                  POLL_WRITE_BYTE(bMtr2Dir, 0);
+ 191                  POLL_WRITE_BYTE(bMtr1Step, 0);
+ 192                  POLL_WRITE_BYTE(bMtr2Step, 0);
+ 193                  POLL_WRITE_BYTE(bLaser, 0);                                     // Disable laswer power
+ 194                  POLL_WRITE_BYTE(bOutputEnable, 0);                      // Disable the output until we're ready
+ 195                  POLL_WRITE_BYTE(bPos, 1);                                       // Positive voltage and current
+ 196                  POLL_WRITE_BYTE(bCal, 0);                                       // Not in calibration state
+ 197          }
+ 198          
+ 199          
+ 200          //-----------------------------------------------------------------------------
+ 201          // SPI_Init
+ 202          //-----------------------------------------------------------------------------
+ 203          //
+ 204          // Return Value: none
+ 205          // Parameters:   none
+ 206          //
+ 207          // Initialize SPI.  The initialization sets parameters to talk to the DAC
+ 208          // (AD5754), so some things are changed later to talk to the ADC and RAM.
+ 209          //
+ 210          //-----------------------------------------------------------------------------
+ 211          void SPI_Init (void)
+ 212          {
+ 213                  // Set all SPI chip selects to Not Selected or 1
+ 214                  POLL_WRITE_BYTE(bNotDACCS, 1);
+ 215                  POLL_WRITE_BYTE(bNotADCCS, 1);
+ 216                  POLL_WRITE_BYTE(bNotRAMCS, 1);
+ 217          
+ 218                  // SPI configuration register: SPI0CFG
+ 219                  //  7 SPIBSY    R
+ 220                  //  6 MSTEN             R/W
+ 221                  //  5 CKPHA             R/W
+ 222                  //  4 CKPOL             R/W
+ 223                  //  3 SLVSEL    R
+ 224                  //  2 NSSIN             R
+ 225                  //  1 SRMT              R
+ 226                  //  0 RXBMT             R
+ 227                  SPI0CFG = 0x50;                         // 0x60 = 0101 0000
+ 228          
+ 229                  // SPI control register: SPI0CN
+ 230                  //  7 SPIF              R/W
+ 231                  //  6 WCOL              R/W
+ 232                  //  5 MODF              R/W
+ 233                  //  4 RXOVRN    R/W
+ 234                  //  3 NSSMD1    R/W
+ 235                  //  2 NSSMD0    R/W
+C51 COMPILER V8.18   MAIN                                                                  01/01/2011 16:04:21 PAGE 5   
+
+ 236                  //  1 TXBMT             R
+ 237                  //  0 SPIEN             R/W
+ 238                  SPI0CN = 0x01;                          // 0x01 = 0000 0001
+ 239          
+ 240                  // SPI clock rate register: SPI0CKR
+ 241                  //  7 SCR7              R/W
+ 242                  //  ...
+ 243                  //  0 SCR0              R/W
+ 244                  // The SPI clock is a divided version of SYSCLK = 24 MHz:
+ 245                  //                SYSCLK
+ 246                  //  f_SCK = ------------------
+ 247                  //           2 x (SPI0CKR + 1)
+ 248                  // So f_SCK = 12 MHz (for the DAC and RAM) is SPI0CKR = 0x00
+ 249                  // and f_SCK = 2 MHz (for the ADC) is SPI0CKR = 0x05
+ 250                  SPI0CKR = 0x05;                         // 0x00 = 0000 0101
+ 251          
+ 252                  // Enable SPI interrupts, SFR IE, bit 6
+ 253                  ESPI0 = 1;
+ 254          }
+ 255          
+ 256          
+ 257          //-----------------------------------------------------------------------------
+ 258          // DAC_Init
+ 259          //-----------------------------------------------------------------------------
+ 260          //
+ 261          // Return Value: none
+ 262          // Parameters:   none
+ 263          //
+ 264          // Initialize DAC.  Assumes SPI_Init was just called and CKPOL and CKPHA are set
+ 265          // correctly.
+ 266          //
+ 267          //-----------------------------------------------------------------------------
+ 268          void DAC_Init (void)
+ 269          {
+ 270                  //Show that the DAC is being used
+ 271                  Writing_to_DAC = 1;
+ 272          
+ 273                  ////
+ 274                  //// SELECT OUTPUT RANGE
+ 275                  ////
+ 276                  // 3 bytes to send
+ 277                  //      23 = R/W = 0 for write
+ 278                  //      22 = Not used = 0 must be zero
+ 279                  //      21-19 = Reg2-Reg0 = 001
+ 280                  //      18-16 = A2-A0 = DAC address, A = 000, B = 001, C = 010, D = 011
+ 281                  //      15-03 = Don't care
+ 282                  //      02-00 = 100 for +/- 10 V
+ 283                  // DAC A: send 0000 1000 0000 0000 0000 0100
+ 284                  POLL_WRITE_BYTE(bNotDACCS, 0);  // Select the DAC for SPI communication
+ 285                  SPI0DAT = 0x08;                                 // 0x08 = 0000 1000
+ 286                  while(SPI_DAC_Bytes != 1) {}    // wait for SPI to finish sending byte
+ 287                  SPI0DAT = 0x00;                                 // 0x00 = 0000 0000
+ 288                  while(SPI_DAC_Bytes != 2) {}    // wait for SPI to finish sending byte
+ 289                  SPI0DAT = 0x04;                                 // 0x04 = 0000 0100
+ 290                  while(SPI_DAC_Bytes != 3) {}    // wait for SPI to finish sending byte
+ 291                  SPI_DAC_Bytes -= 3;                             // Reset byte TX counter
+ 292                  POLL_WRITE_BYTE(bNotDACCS, 1);  // Deselect the DAC for SPI communication
+ 293          
+ 294                  ////
+ 295                  //// CONTROL REGISTER
+ 296                  ////
+ 297                  // 3 bytes to send
+C51 COMPILER V8.18   MAIN                                                                  01/01/2011 16:04:21 PAGE 6   
+
+ 298                  //      23 = R/W = 0 for write
+ 299                  //      22 = Not used = 0 must be zero
+ 300                  //      21-19 = Reg2-Reg0 = 011
+ 301                  //      18-16 = A2-A0 = command, = 001 for various enables/disables
+ 302                  //      15-04 = Don't care
+ 303                  //      03 = thermal shutdown enable = 1 for enable
+ 304                  //      02 = current clamp enable = 1 for enable
+ 305                  //      01 = clear select = 1 for full range
+ 306                  //      00 = serial data out disable = 0 for enable
+ 307                  // DAC A: send 0001 1001 0000 0000 0000 1110
+ 308                  POLL_WRITE_BYTE(bNotDACCS, 0);  // Select the DAC for SPI communication
+ 309                  SPI0DAT = 0x19;                                 // 0x19 = 0001 1001
+ 310                  while(SPI_DAC_Bytes != 1) {}    // wait for SPI to finish sending byte
+ 311                  SPI0DAT = 0x00;                                 // 0x00 = 0000 0000
+ 312                  while(SPI_DAC_Bytes != 2) {}    // wait for SPI to finish sending byte
+ 313                  SPI0DAT = 0x0E;                                 // 0x0E = 0000 1110
+ 314                  while(SPI_DAC_Bytes != 3) {}    // wait for SPI to finish sending byte
+ 315                  SPI_DAC_Bytes -= 3;                             // Reset byte TX counter
+ 316                  POLL_WRITE_BYTE(bNotDACCS, 1);  // Deselect the DAC for SPI communication
+ 317          
+ 318                  ////
+ 319                  //// POWER CONTROL REGISTER
+ 320                  ////
+ 321                  // 3 bytes to send
+ 322                  //      23 = R/W = 0 for write
+ 323                  //      22 = Not used = 0 must be zero
+ 324                  //      21-19 = Reg2-Reg0 = 010
+ 325                  //      18-16 = A2-A0 = unused?, = 000 (Table 26, p. 26)
+ 326                  //      15-11 = Don't care
+ 327                  //      10-07 = Overcurrent alert (read only) for DACs A-D, respectively
+ 328                  //      06 = reserved bit, 0
+ 329                  //      05 = thermal shutdown alert (read only)
+ 330                  //      04 = reserved bit, 0
+ 331                  //      03-00 = power up for DACs D-A, respectively. 1 for normal operating
+ 332                  //                      mode. 0 for power-down mode.  MCU sets to 0 if clamp disabled
+ 333                  //                      and overcurrent detected.
+ 334                  // DAC A: send 0001 0000 0000 0000 0000 1000
+ 335                  POLL_WRITE_BYTE(bNotDACCS, 0);  // Select the DAC for SPI communication
+ 336                  SPI0DAT = 0x10;                                 // 0x10 = 0001 0000
+ 337                  while(SPI_DAC_Bytes != 1) {}    // wait for SPI to finish sending byte
+ 338                  SPI0DAT = 0x00;                                 // 0x00 = 0000 0000
+ 339                  while(SPI_DAC_Bytes != 2) {}    // wait for SPI to finish sending byte
+ 340                  SPI0DAT = 0x01;                                 // 0x0F = 0000 0001
+ 341                  while(SPI_DAC_Bytes != 3) {}    // wait for SPI to finish sending byte
+ 342                  SPI_DAC_Bytes -= 3;                             // Reset byte TX counter
+ 343                  POLL_WRITE_BYTE(bNotDACCS, 1);  // Deselect the DAC for SPI communication
+ 344          
+ 345                  //Reset the DAC boolean
+ 346                  Writing_to_DAC = 0;
+ 347          }
+ 348          
+ 349          
+ 350          //-----------------------------------------------------------------------------
+ 351          // ADC_Init
+ 352          //-----------------------------------------------------------------------------
+ 353          //
+ 354          // Return Value: none
+ 355          // Parameters:   none
+ 356          //
+ 357          // Initialize ADC.  Must reset the SPI timing, clock polarization, and clock
+ 358          // phase.
+ 359          //
+C51 COMPILER V8.18   MAIN                                                                  01/01/2011 16:04:21 PAGE 7   
+
+ 360          //-----------------------------------------------------------------------------
+ 361          void ADC_Init (void)
+ 362          {
+ 363                  //Show that the ADC is being used
+ 364                  Writing_to_ADC = 1;
+ 365          
+ 366                  ////
+ 367                  //// Set SPI configuration
+ 368                  ////
+ 369          
+ 370                  // SPI configuration register: SPI0CFG
+ 371                  //  7 SPIBSY    R
+ 372                  //  6 MSTEN             R/W
+ 373                  //  5 CKPHA             R/W
+ 374                  //  4 CKPOL             R/W
+ 375                  //  3 SLVSEL    R
+ 376                  //  2 NSSIN             R
+ 377                  //  1 SRMT              R
+ 378                  //  0 RXBMT             R
+ 379                  SPI0CFG = 0x40;                         // 0x60 = 0100 0000
+ 380          
+ 381                  // SPI clock rate register: SPI0CKR
+ 382                  //  7 SCR7              R/W
+ 383                  //  ...
+ 384                  //  0 SCR0              R/W
+ 385                  // The SPI clock is a divided version of SYSCLK = 24 MHz:
+ 386                  //                SYSCLK
+ 387                  //  f_SCK = ------------------
+ 388                  //           2 x (SPI0CKR + 1)
+ 389                  // So f_SCK = 12 MHz (for the DAC and RAM) is SPI0CKR = 0x00
+ 390                  // and f_SCK = 2 MHz (for the ADC) is SPI0CKR = 0x05
+ 391                  SPI0CKR = 0x05;                         // 0x00 = 0000 0101
+ 392          
+ 393                  ////
+ 394                  //// Write configuration to ADC
+ 395                  ////
+ 396          
+ 397                  // 2 bytes to send
+ 398                  //      15 = EN1 = 1 to write data
+ 399                  //      14 = EN2 = 0 to write data
+ 400                  //      13 = SPD = 1 for 1 kHz conversion rate (0 would be for 250 Hz)
+ 401                  //      12 = SLP = 0 for NAP, SLEEP disabled (12 ms to wake from SLEEP)
+ 402                  //      11-00 = Don't care
+ 403                  // ADC: send 1010 0000 0000 0000
+ 404                  POLL_WRITE_BYTE(bNotADCCS, 0);  // Select the DAC for SPI communication
+ 405                  SPI0DAT = 0xA0;                                 // 0xA0 = 1010 0000
+ 406                  while(SPI_DAC_Bytes != 1) {}    // wait for SPI to finish sending byte
+ 407                  SPI0DAT = 0x00;                                 // 0x00 = 0000 0000
+ 408                  while(SPI_DAC_Bytes != 2) {}    // wait for SPI to finish sending byte
+ 409                  POLL_WRITE_BYTE(bNotADCCS, 1);  // Deselect the DAC for SPI communication
+ 410          
+ 411                  //Shut off writing to ADC
+ 412                  Writing_to_ADC = 0;
+ 413          }
+ 414          
+ 415          
+ 416          //-----------------------------------------------------------------------------
+ 417          // Usb0_Init
+ 418          //-----------------------------------------------------------------------------
+ 419          //
+ 420          // Return Value : None
+ 421          // Parameters   : None
+C51 COMPILER V8.18   MAIN                                                                  01/01/2011 16:04:21 PAGE 8   
+
+ 422          // 
+ 423          // - Initialize USB0
+ 424          // - Enable USB0 interrupts
+ 425          // - Enable USB0 transceiver
+ 426          // - Enable USB0 with suspend detection
+ 427          //-----------------------------------------------------------------------------
+ 428          void Usb0_Init(void)
+ 429          {
+ 430             BYTE Count;
+ 431          
+ 432             // Set initial values of In_Packet and Out_Packet to zero
+ 433             // Initialized here so that WDT doesn't kick in first
+ 434             for (Count = 0; Count < 64; Count++)
+ 435             {
+ 436                Out_Packet[Count] = 0;
+ 437                In_Packet[Count] = 0;
+ 438             }
+ 439          
+ 440             POLL_WRITE_BYTE(POWER,  0x08);      // Force Asynchronous USB Reset
+ 441             POLL_WRITE_BYTE(IN1IE,  0x07);      // Enable Endpoint 0-2 in interrupts
+ 442             POLL_WRITE_BYTE(OUT1IE, 0x07);      // Enable Endpoint 0-2 out interrupts
+ 443             POLL_WRITE_BYTE(CMIE,   0x07);      // Enable Reset,Resume,Suspend interrupts
+ 444          #ifdef _USB_LOW_SPEED_
+                 USB0XCN = 0xC0;                     // Enable transceiver; select low speed
+                 POLL_WRITE_BYTE(CLKREC, 0xA0);      // Enable clock recovery; single-step mode
+                                                     // disabled; low speed mode enabled
+              #else
+ 449             USB0XCN = 0xE0;                     // Enable transceiver; select full speed
+ 450             POLL_WRITE_BYTE(CLKREC, 0x80);      // Enable clock recovery, single-step mode
+ 451                                                 // disabled
+ 452          #endif // _USB_LOW_SPEED_
+ 453          
+ 454             EIE1 |= 0x02;                       // Enable USB0 Interrupts
+ 455             EA = 1;                             // Global Interrupt enable
+ 456                                                 // Enable USB0 by clearing the USB 
+ 457                                                 // Inhibit bit
+ 458             POLL_WRITE_BYTE(POWER,  0x01);      // and enable suspend detection
+ 459          }
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  6 ERROR(S)

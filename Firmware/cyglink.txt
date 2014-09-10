@@ -1,0 +1,4 @@
+"C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\Main.obj",
+"C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\Interrupts.obj",
+"C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USBDescriptor.obj",
+"C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USBStandardRequests.obj"  TO "C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\SHArK" RS(256) PL(68) PW(78) 

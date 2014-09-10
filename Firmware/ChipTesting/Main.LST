@@ -1,0 +1,628 @@
+C51 COMPILER V8.18   MAIN                                                                  09/11/2011 14:09:30 PAGE 1   
+
+
+C51 COMPILER V8.18, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN Main.OBJ
+COMPILER INVOKED BY: C:\SiLabs\MCU\IDEfiles\C51\BIN\C51.exe Main.c DB OE BR INCDIR(c:\SiLabs\MCU\Inc)
+
+line level    source
+
+   1          //-----------------------------------------------------------------------------
+   2          // Main.c
+   3          //-----------------------------------------------------------------------------
+   4          // Copyright (C) RDH2 Science, LLC
+   5          // http://www.rdh2.com
+   6          //
+   7          // Main.c contains the functionality required to run
+   8          // the RDH2 Potentiostat.  This is only very basic 
+   9          // functionality, without the timer and other operations.
+  10          //
+  11          // Target:         C8051F32x
+  12          // Tool chain:     Keil compiler
+  13          // Command Line:   None
+  14          //
+  15          // Release 1.0 / Not Released
+  16          //    -Initial Revision
+  17          
+  18          //-----------------------------------------------------------------------------
+  19          // Includes
+  20          //-----------------------------------------------------------------------------
+  21          #include <compiler_defs.h>
+  22          #include <C8051F320_defs.h>
+  23          #include "Main.h"
+  24          
+  25          
+  26          //-----------------------------------------------------------------------------
+  27          // Global Variables for the Main function
+  28          //-----------------------------------------------------------------------------
+  29          // Boolean to determine DAC is being written to in ISR
+  30          U8 dacWrite = 0;
+  31          
+  32          // Boolean to determine ADC is being written to in ISR
+  33          U8 adcWrite = 0;
+  34          
+  35          // Counter for bytes output through SPI
+  36          U8 bytesWritten = 0;
+  37          
+  38          // High ADC measurement byte
+  39          U8 adcHigh = 0;
+  40          
+  41          // Low ADC measurement byte
+  42          U8 adcLow = 0;
+  43          
+  44          // Delay variable used in a few places
+  45          U16 delay = 0;
+  46          
+  47          
+  48          //-----------------------------------------------------------------------------
+  49          // MAIN Routine
+  50          //-----------------------------------------------------------------------------
+  51          void main (void)
+  52          {
+  53   1              // Disable watchdog timer
+  54   1              PCA0MD &= ~0x40;
+  55   1      
+C51 COMPILER V8.18   MAIN                                                                  09/11/2011 14:09:30 PAGE 2   
+
+  56   1              // Initialize system clock to 24 MHz
+  57   1              // and USB clock to 48 MHz
+  58   1              InitSYSCLK();
+  59   1                                                                              
+  60   1              // Initialize crossbar and GPIO
+  61   1              InitPORT();                                     
+  62   1      
+  63   1              // Enable global interrupts
+  64   1              EA = 1;                                                 
+  65   1      
+  66   1              //Setup the SPI peripheral and the DAC / ADC chips
+  67   1              InitSPI();
+  68   1              InitDAC();
+  69   1              InitADC();
+  70   1      
+  71   1              // Enable output, close relay K601
+  72   1              OUTPUTEN = 1;
+  73   1      
+  74   1              // Set DAC output voltage (testing)
+  75   1              //   -0.1V = 0xFEB8
+  76   1              //       -0.2V = 0xFD71
+  77   1              WriteDataToDAC(0x00, 0x00, 0x00);
+  78   1              WriteDataToDAC(0x00, 0xFE, 0xB8);
+  79   1              WriteDataToDAC(0x00, 0xFD, 0x71);
+  80   1      
+  81   1              // Read from ADC to the global variables
+  82   1              WriteDataToADC(0xFF, 0xFF);
+  83   1              WriteDataToADC(0xFF, 0xFF);
+  84   1      
+  85   1              while (1) { NOP(); }
+  86   1      }
+  87          
+  88          
+  89          //-----------------------------------------------------------------------------
+  90          // SPI_ISR
+  91          //-----------------------------------------------------------------------------
+  92          //
+  93          // Return Value: none
+  94          // Parameters:   none
+  95          //
+  96          // The Interrupt Service Routine (ISR) is used when the SPI has
+  97          // transmitted a byte to a slave device.  The interrupt is called
+  98          // when something associated with the SPI has occurred.
+  99          //
+ 100          //-----------------------------------------------------------------------------
+ 101          INTERRUPT(SPI_ISR, INTERRUPT_SPI0)
+ 102          {
+ 103   1              // Interrupt flag, 4 possibilities (p. 199)
+ 104   1              //      0x80 = TX complete, receive byte ready to readk
+ 105   1              //      0x40 = write collision, when SPI0DAT is written prior to last TX
+ 106   1              //      0x20 = mode fault, NSS is pulled low during multi-master mode
+ 107   1              //      0x10 = RX overrun, received a byte before last one was read (slave mode)
+ 108   1      
+ 109   1              // Determine what caused the interrupt by checking
+ 110   1              // the SPI0CN flags:
+ 111   1              // TX complete, byte ready to read
+ 112   1              if ((SPI0CN & 0x80) == 0x80)            
+ 113   1              {
+ 114   2                      // Clear the interrupt flag
+ 115   2                      SPIF = 0;
+ 116   2      
+ 117   2                      // If the ADC is being addressed, save the 
+C51 COMPILER V8.18   MAIN                                                                  09/11/2011 14:09:30 PAGE 3   
+
+ 118   2                      // data in SPI0DAT to the global variables
+ 119   2                      if (adcWrite > 0)
+ 120   2                      {
+ 121   3                              if (bytesWritten == 0)
+ 122   3                              {
+ 123   4                                      adcHigh = SPI0DAT;
+ 124   4                              }
+ 125   3                              else if (bytesWritten == 1)
+ 126   3                              {
+ 127   4                                      adcLow = SPI0DAT;
+ 128   4                              }
+ 129   3      
+ 130   3                              // Increment the global variable so that the
+ 131   3                              // next byte can be transmitted
+ 132   3                              bytesWritten++;
+ 133   3                      }
+ 134   2      
+ 135   2                      // If the DAC is being addressed, just increment
+ 136   2                      // the global variable so that the next byte can
+ 137   2                      // be transmitted
+ 138   2                      else if (dacWrite > 0)
+ 139   2                      {
+ 140   3                              bytesWritten++;
+ 141   3                      }
+ 142   2      
+ 143   2                      // Otherwise, an error occurred, so set the
+ 144   2                      // ERRORPIN value to high
+ 145   2                      else
+ 146   2                      {
+ 147   3                              ERRORPIN = 1;
+ 148   3                      }
+ 149   2              }
+ 150   1      
+ 151   1              // Clear other flags if they occurred:
+ 152   1              // Write collision
+ 153   1              if ((SPI0CN & 0x40) == 0x40)
+ 154   1              {
+ 155   2                      WCOL = 0;
+ 156   2              }
+ 157   1      
+ 158   1              // Mode fault
+ 159   1              if ((SPI0CN & 0x20) == 0x20)
+ 160   1              {
+ 161   2                      MODF = 0;
+ 162   2              }
+ 163   1      
+ 164   1              // Receive overrun
+ 165   1              if ((SPI0CN & 0x10) == 0x10)
+ 166   1              {
+ 167   2                      RXOVRN = 0;
+ 168   2              }
+ 169   1      }
+ 170          
+ 171          
+ 172          //-----------------------------------------------------------------------------
+ 173          // InitDAC
+ 174          //-----------------------------------------------------------------------------
+ 175          //
+ 176          // Return Value: none
+ 177          // Parameters:   none
+ 178          //
+ 179          // Initialize DAC.  Assumes SPI_Init was just called and CKPOL and CKPHA are set
+C51 COMPILER V8.18   MAIN                                                                  09/11/2011 14:09:30 PAGE 4   
+
+ 180          // correctly.
+ 181          //
+ 182          //-----------------------------------------------------------------------------
+ 183          void InitDAC(void)
+ 184          {
+ 185   1              ////
+ 186   1              //// SELECT OUTPUT RANGE
+ 187   1              ////
+ 188   1              // 3 bytes to send
+ 189   1              //      23 = R/W = 0 for write
+ 190   1              //      22 = Not used = 0 must be zero
+ 191   1              //      21-19 = Reg2-Reg0 = 001
+ 192   1              //      18-16 = A2-A0 = DAC address, A = 000, B = 001, C = 010, D = 011
+ 193   1              //      15-03 = Don't care
+ 194   1              //      02-00 = 100 for +/- 10 V
+ 195   1              // DAC A: send 0000 1000 0000 0000 0000 0100
+ 196   1              WriteDataToDAC(0x08, 0x00, 0x04);
+ 197   1      
+ 198   1              ////
+ 199   1              //// CONTROL REGISTER
+ 200   1              ////
+ 201   1              // 3 bytes to send
+ 202   1              //      23 = R/W = 0 for write
+ 203   1              //      22 = Not used = 0 must be zero
+ 204   1              //      21-19 = Reg2-Reg0 = 011
+ 205   1              //      18-16 = A2-A0 = command, = 001 for various enables/disables
+ 206   1              //      15-04 = Don't care
+ 207   1              //      03 = thermal shutdown enable = 1 for enable
+ 208   1              //      02 = current clamp enable = 1 for enable
+ 209   1              //      01 = clear select = 1 for full range
+ 210   1              //      00 = serial data out disable = 0 for enable
+ 211   1              // DAC A: send 0001 1001 0000 0000 0000 1111
+ 212   1              WriteDataToDAC(0x19, 0x00, 0x0F);
+ 213   1      
+ 214   1              ////
+ 215   1              //// POWER CONTROL REGISTER
+ 216   1              ////
+ 217   1              // 3 bytes to send
+ 218   1              //      23 = R/W = 0 for write
+ 219   1              //      22 = Not used = 0 must be zero
+ 220   1              //      21-19 = Reg2-Reg0 = 010
+ 221   1              //      18-16 = A2-A0 = unused?, = 000 (Table 26, p. 26)
+ 222   1              //      15-11 = Don't care
+ 223   1              //      10-07 = Overcurrent alert (read only) for DACs A-D, respectively
+ 224   1              //      06 = reserved bit, 0
+ 225   1              //      05 = thermal shutdown alert (read only)
+ 226   1              //      04 = reserved bit, 0
+ 227   1              //      03-00 = power up for DACs D-A, respectively. 1 for normal operating
+ 228   1              //                      mode. 0 for power-down mode.  MCU sets to 0 if clamp disabled
+ 229   1              //                      and overcurrent detected.
+ 230   1              // DAC A: send 0001 0000 0000 0000 0000 1111
+ 231   1              WriteDataToDAC(0x10, 0x00, 0x0F);
+ 232   1      }
+ 233          
+ 234          
+ 235          //-----------------------------------------------------------------------------
+ 236          // InitADC
+ 237          //-----------------------------------------------------------------------------
+ 238          //
+ 239          // Return Value: none
+ 240          // Parameters:   none
+ 241          //
+C51 COMPILER V8.18   MAIN                                                                  09/11/2011 14:09:30 PAGE 5   
+
+ 242          // Initialize ADC.  Must reset the SPI timing, clock polarization, and clock
+ 243          // phase.
+ 244          //
+ 245          //-----------------------------------------------------------------------------
+ 246          void InitADC(void)
+ 247          {
+ 248   1              ////
+ 249   1              //// Write configuration to ADC
+ 250   1              ////
+ 251   1              // 2 bytes to send
+ 252   1              //      15 = EN1 = 1 to write data
+ 253   1              //      14 = EN2 = 0 to write data
+ 254   1              //      13 = SPD = 1 for 1 kHz conversion rate (0 would be for 250 Hz)
+ 255   1              //      12 = SLP = 0 for NAP, SLEEP disabled (12 ms to wake from SLEEP)
+ 256   1              //      11-00 = Don't care
+ 257   1              // ADC: send 1010 0000 0000 0000
+ 258   1              WriteDataToADC(0xA0, 0x00);
+ 259   1      }
+ 260          
+ 261          
+ 262          //-----------------------------------------------------------------------------
+ 263          // WriteDataToDAC
+ 264          //-----------------------------------------------------------------------------
+ 265          //
+ 266          // Return Value: none
+ 267          // Parameters:   char byte1
+ 268          //                               char byte2
+ 269          //                               char byte3
+ 270          //
+ 271          // Sets up the DAC for communication and sends three
+ 272          // bytes to it.
+ 273          //
+ 274          //-----------------------------------------------------------------------------
+ 275          void WriteDataToDAC(U8 byte1, U8 byte2, U8 byte3)
+ 276          {
+ 277   1              // Configure the SPI for DAC communication
+ 278   1              //SetSPI0CFG(0x50);
+ 279   1               
+ 280   1              // Select the DAC for SPI communication
+ 281   1              NDACCS = 0;
+ 282   1      
+ 283   1              //Set the flags for DAC communication
+ 284   1              dacWrite = 1;
+ 285   1      
+ 286   1              // Send the bytes to the SPI
+ 287   1              ResetByteCounter();
+ 288   1              WriteByteToSPI(byte1, 1);
+ 289   1              WriteByteToSPI(byte2, 2);
+ 290   1              WriteByteToSPI(byte3, 3);
+ 291   1      
+ 292   1              //Reset the flags for DAC communication
+ 293   1              dacWrite = 0;
+ 294   1      
+ 295   1              // Deselect the DAC for SPI communication
+ 296   1              NDACCS = 1;
+ 297   1      }
+ 298          
+ 299          
+ 300          //-----------------------------------------------------------------------------
+ 301          // WriteDataToADC
+ 302          //-----------------------------------------------------------------------------
+ 303          //
+C51 COMPILER V8.18   MAIN                                                                  09/11/2011 14:09:30 PAGE 6   
+
+ 304          // Return Value: none
+ 305          // Parameters:   U8 byte1
+ 306          //                               U8 byte2
+ 307          //
+ 308          // Sets up the ADC for communication and sends two
+ 309          // bytes to it.
+ 310          //
+ 311          //-----------------------------------------------------------------------------
+ 312          void WriteDataToADC(U8 byte1, U8 byte2)
+ 313          {
+ 314   1              // Configure the SPI for ADC communication
+ 315   1              //SetSPI0CFG(0x40);
+ 316   1      
+ 317   1              // Select the ADC for SPI communication
+ 318   1              NADCCS = 0;
+ 319   1      
+ 320   1              // Delay for 12 ms for the ADC to turn on
+ 321   1              delay = 0;
+ 322   1              while (delay < 1000)
+ 323   1                      { delay++; }
+ 324   1      
+ 325   1              //Set the flag for ADC communication
+ 326   1              adcWrite = 1;
+ 327   1      
+ 328   1              //Send the bytes to the ADC
+ 329   1              ResetByteCounter();
+ 330   1              WriteByteToSPI(byte1, 1);
+ 331   1              WriteByteToSPI(byte2, 2);
+ 332   1      
+ 333   1              //Reset the ADC communication flags
+ 334   1              adcWrite = 0;
+ 335   1      
+ 336   1              // Deselect the ADC for SPI communication
+ 337   1              NADCCS = 1;
+ 338   1      }
+ 339          
+ 340          
+ 341          //-----------------------------------------------------------------------------
+ 342          // ResetByteCounter
+ 343          //-----------------------------------------------------------------------------
+ 344          //
+ 345          // Return Value: none
+ 346          // Parameters:   none
+ 347          //
+ 348          // Centralizes the reset of the bytesWritten counter.
+ 349          // 
+ 350          //-----------------------------------------------------------------------------
+ 351          void ResetByteCounter(void)
+ 352          {
+ 353   1              // Reset the BytesWritten global variable
+ 354   1              bytesWritten = 0;
+ 355   1      }
+ 356          
+ 357          
+ 358          //-----------------------------------------------------------------------------
+ 359          // WriteByteToSPI
+ 360          //-----------------------------------------------------------------------------
+ 361          //
+ 362          // Return Value: none
+ 363          // Parameters:   byte input
+ 364          //
+ 365          // Writes a byte to the SPI0DAT register and waits for
+C51 COMPILER V8.18   MAIN                                                                  09/11/2011 14:09:30 PAGE 7   
+
+ 366          // the interrupt to return.
+ 367          // 
+ 368          //-----------------------------------------------------------------------------
+ 369          void WriteByteToSPI(U8 input, U8 byteCount)
+ 370          {
+ 371   1              //Write the byte and wait for the interrupt
+ 372   1              SPI0DAT = input;
+ 373   1              while (bytesWritten != byteCount) { NOP(); }
+ 374   1      }
+ 375          
+ 376          
+ 377          //-----------------------------------------------------------------------------
+ 378          // SetSPI0CFG
+ 379          //-----------------------------------------------------------------------------
+ 380          //
+ 381          // Return Value: none
+ 382          // Parameters:   byte config
+ 383          //
+ 384          // Sets up the CFG part of the SPI, including disabling
+ 385          // and re-enabling the SPI.
+ 386          // 
+ 387          //-----------------------------------------------------------------------------
+ 388          void SetSPI0CFG(U8 config)
+ 389          {
+ 390   1              // Turn off the SPI to configure it
+ 391   1              SPI0CN = 0x00;
+ 392   1      
+ 393   1              // Set the clock polarity and phase for the DAC
+ 394   1              //  7 SPIBSY    R
+ 395   1              //  6 MSTEN             R/W
+ 396   1              //  5 CKPHA             R/W
+ 397   1              //  4 CKPOL             R/W
+ 398   1              //  3 SLVSEL    R
+ 399   1              //  2 NSSIN             R
+ 400   1              //  1 SRMT              R
+ 401   1              //  0 RXBMT             R
+ 402   1              SPI0CFG = config;
+ 403   1      
+ 404   1              // Turn the SPI back on now that it is configured
+ 405   1              //  7 SPIF              R/W
+ 406   1              //  6 WCOL              R/W
+ 407   1              //  5 MODF              R/W
+ 408   1              //  4 RXOVRN    R/W
+ 409   1              //  3 NSSMD1    R/W
+ 410   1              //  2 NSSMD0    R/W
+ 411   1              //  1 TXBMT             R
+ 412   1              //  0 SPIEN             R/W
+ 413   1              SPI0CN = 0x01;                                  
+ 414   1      }
+ 415          
+ 416          
+ 417          //-----------------------------------------------------------------------------
+ 418          // InitSYSCLK
+ 419          //-----------------------------------------------------------------------------
+ 420          //
+ 421          // Return Value: none
+ 422          // Parameters:   none
+ 423          //
+ 424          // This routine initializes the system clock to 24 MHz and the USB clock to
+ 425          // 48 MHz (USB 2.0 requirement).  The 4x clock multiplier is employed, so
+ 426          // the USB clock is 12 MHz * 4 = 48 MHz.  The system clock is set to the 4x
+ 427          // oscillator divided by 2, 12 MHz * 4 / 2 = 24 MHz.  Also enables missing
+C51 COMPILER V8.18   MAIN                                                                  09/11/2011 14:09:30 PAGE 8   
+
+ 428          // clock detector reset (required for this setup).
+ 429          //
+ 430          // This setup was verified by blinking an LED using the 16-bit TIMER2 and a
+ 431          // loop that ran 10 times.  TIMER2 was run from the system clock / 12.
+ 432          // Blink Period =  10 * 2^16 / (24 MHz / (2*12)) = 0.655 s
+ 433          // (Factor of 2 for two cycles per blink period.)
+ 434          //
+ 435          //-----------------------------------------------------------------------------
+ 436          void InitSYSCLK(void)
+ 437          {
+ 438   1              // Configure internal oscillator
+ 439   1              OSCICN = 0x83;
+ 440   1      
+ 441   1              // Set up clock multiplier to allow for a 48 MHz USB clock:
+ 442   1              // Reset clock multiplier
+ 443   1              CLKMUL = 0x00;
+ 444   1      
+ 445   1              // Enable multiplier
+ 446   1              CLKMUL |= 0x80;
+ 447   1      
+ 448   1              // Delay for >5us (12MHz * 20ps = 240 clock cycles)
+ 449   1              delay = 0;
+ 450   1              while (delay < 300) 
+ 451   1                      { delay++; }
+ 452   1      
+ 453   1              // Initialize multiplier
+ 454   1              CLKMUL |= 0xC0;
+ 455   1      
+ 456   1              // Poll for multiplier ready
+ 457   1              while ((CLKMUL & MULRDY) != MULRDY) { NOP(); }
+ 458   1      
+ 459   1              // USB clock = 4*(Int Osc)
+ 460   1              // Sys clock = 4*(Int Osc)/2
+ 461   1              CLKSEL = 0x02;
+ 462   1                                                      
+ 463   1              // Enable missing clock detector, required for USB
+ 464   1              RSTSRC = 0x04;
+ 465   1      }
+ 466          
+ 467          
+ 468          //-----------------------------------------------------------------------------
+ 469          // InitSPI
+ 470          //-----------------------------------------------------------------------------
+ 471          //
+ 472          // Return Value: none
+ 473          // Parameters:   none
+ 474          //
+ 475          // Initialize SPI.  The initialization sets parameters to talk to the DAC
+ 476          // (AD5754), so some things are changed later to talk to the ADC and RAM.
+ 477          //
+ 478          //-----------------------------------------------------------------------------
+ 479          void InitSPI(void)
+ 480          {
+ 481   1              // Configure the SPI 
+ 482   1              SetSPI0CFG(0x50);
+ 483   1      
+ 484   1              // SPI clock rate register: SPI0CKR
+ 485   1              //  7 SCR7              R/W
+ 486   1              //  ...
+ 487   1              //  0 SCR0              R/W
+ 488   1              // The SPI clock is a divided version of SYSCLK = 24 MHz:
+ 489   1              //                SYSCLK
+C51 COMPILER V8.18   MAIN                                                                  09/11/2011 14:09:30 PAGE 9   
+
+ 490   1              //  f_SCK = ------------------
+ 491   1              //           2 x (SPI0CKR + 1)
+ 492   1              // So f_SCK = 12 MHz (for the DAC and RAM) is SPI0CKR = 0x00
+ 493   1              // and f_SCK = 2 MHz (for the ADC) is SPI0CKR = 0x05
+ 494   1              SPI0CKR = 0x05;                         // 0x00 = 0000 0101
+ 495   1      
+ 496   1              // Enable SPI interrupts, SFR IE, bit 6
+ 497   1              ESPI0 = 1;
+ 498   1      }
+ 499          
+ 500          
+ 501          //-----------------------------------------------------------------------------
+ 502          // InitPORT
+ 503          //-----------------------------------------------------------------------------
+ 504          //
+ 505          // Return Value: none
+ 506          // Parameters:   none
+ 507          //
+ 508          // Configure the Crossbar and GPIO ports.
+ 509          //
+ 510          // P0.0 - SCK (SPI)
+ 511          // P0.1 - MISO (SPI)
+ 512          // P0.2 - MOSI (SPI)
+ 513          // P0.3 - Motor 2 Direction (Stepper Motor Driver)
+ 514          // P0.4 - Motor 2 Step (Stepper Motor Driver)
+ 515          // P0.5 - Not Driver Enable (Stepper Motor Driver)
+ 516          // P0.6 - Motor 1 Direction (Stepper Motor Driver)
+ 517          // P0.7 - Motor 1 Step (Stepper Motor Driver)
+ 518          // P1.0 - In TTL
+ 519          // P1.1 - Out TTL
+ 520          // P1.2 - Laser Power On/Off
+ 521          // P1.3 - N/C
+ 522          // P1.4 - Not DAC CS (SPI)
+ 523          // P1.5 - N/C
+ 524          // P1.6 - N/C
+ 525          // P1.7 - Calibration (logical)
+ 526          // P2.0 - Positive Current (logical)
+ 527          // P2.1 - Not ADC CS (SPI)
+ 528          // P2.2 - N/C (LED, push-pull, temporary for testing purposes)
+ 529          // P2.3 - Output Enable
+ 530          // P2.4 - N/C
+ 531          // P2.5 - N/C
+ 532          // P2.6 - Not RAM CS (SPI)
+ 533          // P2.7 - Not RAM Hold
+ 534          // P3.0 - N/C
+ 535          //
+ 536          //-----------------------------------------------------------------------------
+ 537          void InitPORT(void)
+ 538          {
+ 539   1              // Set all port pins as NOT analog inputs.
+ 540   1              P0MDIN = 0xFF;
+ 541   1              P1MDIN = 0xFF;
+ 542   1              P2MDIN = 0xFF;
+ 543   1              P3MDIN = 0xFF;
+ 544   1      
+ 545   1              // Select push/pull for all port pins
+ 546   1              P0MDOUT = 0xFD;                 // 1111 1101
+ 547   1              P1MDOUT = 0xFF;
+ 548   1              P2MDOUT = 0xFF;
+ 549   1              P3MDOUT = 0xFF;
+ 550   1      
+ 551   1              // Select MISO for Digital In
+C51 COMPILER V8.18   MAIN                                                                  09/11/2011 14:09:30 PAGE 10  
+
+ 552   1              P0 = 0x02;                              // 0000 0010
+ 553   1      
+ 554   1              // Select pins to be skipped by port crossbar
+ 555   1              P0SKIP = 0x00;
+ 556   1              P1SKIP = 0x00;
+ 557   1              P2SKIP = 0x00;
+ 558   1      
+ 559   1              // Assign port pins to peripherals using the port crossbar (p. 131)
+ 560   1              // Only SPI selected, automatically assigned:
+ 561   1              // SCK  --> P0.0
+ 562   1              // MISO --> P0.1
+ 563   1              // MOSI --> P0.2
+ 564   1              XBR0 = 0x02;
+ 565   1      
+ 566   1              // Enable crossbar and weak pull-ups
+ 567   1              XBR1 = 0x40;
+ 568   1      
+ 569   1              // Initialize the potentiostat state
+ 570   1              // 1. the SPI Not Chip Select ports to high (P1.4, P2.1, P2.6)
+ 571   1              // 2. the stepper motor Not Enable to high (P0.5)
+ 572   1              // 3. the stepper motors "step" ports to low (P0.4, P0.7)
+ 573   1              // 4. the laser power low (P1.2)
+ 574   1              // 5. the Calibration signal to low (P1.7)
+ 575   1              // 6. the current direction signal Positive to high (P2.0)
+ 576   1              // 7. the Output Enable to low (P2.3)
+ 577   1              // 8. the Not RAM Hold to high (P2.7)
+ 578   1              NADCCS = 1;
+ 579   1              NDACCS = 1;
+ 580   1              NRAMCS = 1;
+ 581   1              NRAMHOLD = 1;
+ 582   1              NDRIVEREN = 1;                          // Enable/disable (0/1) stepper motor driver
+ 583   1                                                                      // A 0 causes current from +12 V to flow!
+ 584   1              LASER = 0;                                      // Disable laser power
+ 585   1              OUTPUTEN = 0;                           // Disable the output until we're ready
+ 586   1              CAL = 0;                                        // Not in calibration state
+ 587   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    409    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      7       5
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,206 @@
+C51 COMPILER V8.18   INTERRUPTS                                                            01/09/2011 12:30:01 PAGE 1   
+
+
+C51 COMPILER V8.18, COMPILATION OF MODULE INTERRUPTS
+OBJECT MODULE PLACED IN Interrupts.OBJ
+COMPILER INVOKED BY: C:\SiLabs\MCU\IDEfiles\C51\BIN\C51.exe Interrupts.c DB OE BR INCDIR(C:\SiLabs\MCU\Inc)
+
+line level    source
+
+   1          //-----------------------------------------------------------------------------
+   2          // Interrupts.c
+   3          //-----------------------------------------------------------------------------
+   4          // Copyright (C) RDH2 Science, LLC
+   5          // http://www.rdh2.com
+   6          //
+   7          // Interrupts.c contains the interrupt service routines (ISR)
+   8          // that handle the operation of the potentiostat.
+   9          //
+  10          // Target:         C8051F32x
+  11          // Tool chain:     Keil compiler
+  12          // Command Line:   None
+  13          //
+  14          // Release 1.0 / Not Released
+  15          //    -Initial Revision
+  16          
+  17          //-----------------------------------------------------------------------------
+  18          // Includes
+  19          //-----------------------------------------------------------------------------
+  20          #include <compiler_defs.h>
+  21          #include <C8051F320_defs.h>
+  22          #include "UsbIO.h"
+  23          #include "Registers.h"
+  24          
+  25          
+  26          //-----------------------------------------------------------------------------
+  27          // Extern Global Variables
+  28          //-----------------------------------------------------------------------------
+  29          extern U8 dacWrite;
+  30          extern U8 adcWrite;
+  31          extern U8 bytesWritten;
+  32          extern U8 adcHigh;
+  33          extern U8 adcLow;
+  34          extern U16 delay;
+  35          
+  36          //-----------------------------------------------------------------------------
+  37          // Interrupt Prototypes
+  38          //-----------------------------------------------------------------------------
+  39          INTERRUPT_PROTO(SPI_ISR, INTERRUPT_SPI0);
+  40          INTERRUPT_PROTO(USB_ISR, INTERRUPT_USB0);
+  41          
+  42          
+  43          //-----------------------------------------------------------------------------
+  44          // SPI_ISR
+  45          //-----------------------------------------------------------------------------
+  46          //
+  47          // Return Value: none
+  48          // Parameters:   none
+  49          //
+  50          // The Interrupt Service Routine (ISR) is used when the SPI has
+  51          // transmitted a byte to a slave device.  The interrupt is called
+  52          // when something associated with the SPI has occurred.
+  53          //
+  54          //-----------------------------------------------------------------------------
+  55          INTERRUPT(SPI_ISR, INTERRUPT_SPI0)
+C51 COMPILER V8.18   INTERRUPTS                                                            01/09/2011 12:30:01 PAGE 2   
+
+  56          {
+  57   1              // Interrupt flag, 4 possibilities (p. 199)
+  58   1              //      0x80 = TX complete, receive byte ready to readk
+  59   1              //      0x40 = write collision, when SPI0DAT is written prior to last TX
+  60   1              //      0x20 = mode fault, NSS is pulled low during multi-master mode
+  61   1              //      0x10 = RX overrun, received a byte before last one was read (slave mode)
+  62   1      
+  63   1              // Determine what caused the interrupt by checking
+  64   1              // the SPI0CN flags:
+  65   1              // TX complete, byte ready to read
+  66   1              if ((SPI0CN & 0x80) == 0x80)            
+  67   1              {
+  68   2                      // Clear the interrupt flag
+  69   2                      SPIF = 0;
+  70   2      
+  71   2                      // If the ADC is being addressed, save the 
+  72   2                      // data in SPI0DAT to the global variables
+  73   2                      if (adcWrite > 0)
+  74   2                      {
+  75   3                              if (bytesWritten == 0)
+  76   3                              {
+  77   4                                      adcHigh = SPI0DAT;
+  78   4                              }
+  79   3                              else if (bytesWritten == 1)
+  80   3                              {
+  81   4                                      adcLow = SPI0DAT;
+  82   4                              }
+  83   3      
+  84   3                              // Increment the global variable so that the
+  85   3                              // next byte can be transmitted
+  86   3                              bytesWritten++;
+  87   3                      }
+  88   2      
+  89   2                      // If the DAC is being addressed, just increment
+  90   2                      // the global variable so that the next byte can
+  91   2                      // be transmitted
+  92   2                      else if (dacWrite > 0)
+  93   2                      {
+  94   3                              bytesWritten++;
+  95   3                      }
+  96   2      
+  97   2                      // Otherwise, an error occurred, so set the
+  98   2                      // ERRORPIN value to high
+  99   2                      else
+ 100   2                      {
+ 101   3                              ERRORPIN = 1;
+ 102   3                      }
+ 103   2              }
+ 104   1      
+ 105   1              // Clear other flags if they occurred:
+ 106   1              // Write collision
+ 107   1              if ((SPI0CN & 0x40) == 0x40)
+ 108   1              {
+ 109   2                      WCOL = 0;
+ 110   2              }
+ 111   1      
+ 112   1              // Mode fault
+ 113   1              if ((SPI0CN & 0x20) == 0x20)
+ 114   1              {
+ 115   2                      MODF = 0;
+ 116   2              }
+ 117   1      
+C51 COMPILER V8.18   INTERRUPTS                                                            01/09/2011 12:30:01 PAGE 3   
+
+ 118   1              // Receive overrun
+ 119   1              if ((SPI0CN & 0x10) == 0x10)
+ 120   1              {
+ 121   2                      RXOVRN = 0;
+ 122   2              }
+ 123   1      }
+ 124          
+ 125          
+ 126          //-----------------------------------------------------------------------------
+ 127          // USB_ISR
+ 128          //-----------------------------------------------------------------------------
+ 129          //
+ 130          // Return Value: none
+ 131          // Parameters:   none
+ 132          //
+ 133          // The Interrupt Service Routine (ISR) is used when the USB has
+ 134          // transmitted or received data from the computer.
+ 135          //
+ 136          //-----------------------------------------------------------------------------
+ 137          INTERRUPT(USB_ISR, INTERRUPT_USB0)
+ 138          {       
+ 139   1              // Local variables
+ 140   1              U8 bCommon = 0;
+ 141   1              U8 bIn = 0;
+ 142   1              U8 bOut = 0;
+ 143   1      
+ 144   1              // Read all of the interrupt registers.  This 
+ 145   1              // read also clears the register.
+ 146   1              bCommon = ReadUSBControlByte(CMINT);
+ 147   1              bIn = ReadUSBControlByte(IN1INT);
+ 148   1              bOut = ReadUSBControlByte(OUT1INT);
+ 149   1      
+ 150   1              // Handle the RESET Interrupt
+ 151   1              if (bCommon & rbRSTINT)
+ 152   1              {
+ 153   2                      UsbReset();
+ 154   2              }
+ 155   1      
+ 156   1              // Handle a SETUP packet received or packet 
+ 157   1              // transmitted if Endpoint 0 is in transimt 
+ 158   1              // mode
+ 159   1              if (bIn & rbEP0)
+ 160   1              {
+ 161   2                      HandleControl();
+ 162   2              }
+ 163   1      
+ 164   1              // Handle Endpoint 1 in packet sent and put the 
+ 165   1              // new data on the Endpoint 1 FIFO
+ 166   1              if (bIn & rbIN1)
+ 167   1              {
+ 168   2                      HandleIn1();
+ 169   2              }
+ 170   1      
+ 171   1              // Handle Endpoint 2 out packet received and 
+ 172   1              // take the data off the Endpoint 1 FIFO
+ 173   1              if (bOut & rbOUT2)
+ 174   1              {
+ 175   2                      HandleOut2();
+ 176   2              }
+ 177   1      }
+
+
+C51 COMPILER V8.18   INTERRUPTS                                                            01/09/2011 12:30:01 PAGE 4   
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    196    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       3
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,830 @@
+C51 COMPILER V8.18   INTERRUPTS                                                            01/01/2011 16:04:21 PAGE 1   
+
+
+C51 COMPILER V8.18, COMPILATION OF MODULE INTERRUPTS
+OBJECT MODULE PLACED IN Interrupts.OBJ
+COMPILER INVOKED BY: C:\SiLabs\MCU\IDEfiles\C51\BIN\C51.exe Interrupts.c DB OE BR INCDIR(c:\SiLabs\MCU\Inc)
+
+line level    source
+
+   1          //-----------------------------------------------------------------------------
+   2          // Interrupts.c
+   3          //-----------------------------------------------------------------------------
+   4          //
+   5          // Program Description:
+   6          //
+   7          // Source file for USB firmware. Includes top level ISR with Setup,
+   8          // and Endpoint data handlers.  Also includes routine for USB suspend,
+   9          // reset, and procedural stall.
+  10          //
+  11          // Target:         C8051F32x
+  12          // Tool chain:     Keil C51 7.50 / Keil EVAL C51
+  13          //                 Silicon Laboratories IDE version 2.6
+  14          // Project Name:   SHArK
+  15          
+  16          //-----------------------------------------------------------------------------
+  17          // Includes
+  18          //-----------------------------------------------------------------------------
+  19          
+  20          #include <c8051F320.h>
+  21          #include "USBRegister.h"
+  22          #include "Main.h"
+*** ERROR C131 IN LINE 207 OF MAIN.H: 'BYTE': duplicate function-parameter
+*** ERROR C141 IN LINE 207 OF MAIN.H: syntax error near '*', expected ')'
+*** ERROR C131 IN LINE 209 OF MAIN.H: 'BYTE': duplicate function-parameter
+*** ERROR C141 IN LINE 209 OF MAIN.H: syntax error near '*', expected ')'
+  23          #include "USBDescriptor.h"
+*** ERROR C141 IN LINE 21 OF USBDESCRIPTOR.H: syntax error near 'U8'
+*** ERROR C129 IN LINE 21 OF USBDESCRIPTOR.H: missing ';' before 'bLength'
+  24          
+  25          //-----------------------------------------------------------------------------
+  26          // Global Externs
+  27          //-----------------------------------------------------------------------------
+  28          
+  29          extern int Writing_to_DAC;
+  30          extern int Writing_to_ADC;
+  31          extern int SPI_DAC_Bytes;
+  32          extern int SPI_ADC_Bytes;
+  33          extern int latest_ADC_HighByte;
+  34          extern int latest_ADC_LowByte;
+  35          
+  36          //-----------------------------------------------------------------------------
+  37          // Global Variables
+  38          //-----------------------------------------------------------------------------
+  39          
+  40          BYTE USB_State;                        // Holds the current USB State
+  41                                                 // def. in F32x_USB_Main.h
+  42          
+  43          setup_buffer Setup;                    // Buffer for current device request
+  44          
+  45          unsigned int DataSize;                 // Size of data to return
+  46          unsigned int DataSent;                 // Amount of data sent so far
+  47          BYTE* DataPtr;                         // Pointer to data to return
+  48          
+  49          // Holds the status for each endpoint
+C51 COMPILER V8.18   INTERRUPTS                                                            01/01/2011 16:04:21 PAGE 2   
+
+  50          BYTE Ep_Status[3] = {EP_IDLE, EP_IDLE, EP_IDLE};
+  51          
+  52          
+  53          //-----------------------------------------------------------------------------
+  54          // Interrupt Service Routines
+  55          //-----------------------------------------------------------------------------
+  56          
+  57          //-----------------------------------------------------------------------------
+  58          // Usb_ISR
+  59          //-----------------------------------------------------------------------------
+  60          //
+  61          // Called after any USB type interrupt, this handler determines which type
+  62          // of interrupt occurred, and calls the specific routine to handle it.
+  63          //
+  64          //-----------------------------------------------------------------------------
+  65          void Usb_ISR(void) interrupt 8         // Top-level USB ISR
+  66          {
+  67             BYTE bCommon, bIn, bOut;
+  68             POLL_READ_BYTE(CMINT, bCommon);     // Read all interrupt registers
+  69             POLL_READ_BYTE(IN1INT, bIn);        // this read also clears the register
+  70             POLL_READ_BYTE(OUT1INT, bOut);
+  71             {
+  72                if (bCommon & rbRSUINT)          // Handle Resume interrupt
+  73                {
+  74                   Usb_Resume();
+  75                }
+  76                if (bCommon & rbRSTINT)          // Handle Reset interrupt
+  77                {
+  78                   Usb_Reset();
+  79                }
+  80                if (bIn & rbEP0)                 // Handle Setup packet received
+  81                {                                // or packet transmitted if Endpoint 0
+  82                   Handle_Setup();               // is transmit mode
+  83                }
+  84                if (bIn & rbIN1)                 // Handle In Packet sent, put new data
+  85                {                                // on endpoint 1 fifo
+  86                   Handle_In1();
+  87                }
+  88                if (bOut & rbOUT2)               // Handle Out packet received, take data
+  89                {                                // off endpoint 2 fifo
+  90                   Handle_Out2();
+  91                }
+  92                if (bCommon & rbSUSINT)          // Handle Suspend interrupt
+  93                {
+  94                   Usb_Suspend();
+  95                }
+  96             }
+  97          }
+  98          
+  99          
+ 100          //-----------------------------------------------------------------------------
+ 101          // Usb_ISR
+ 102          //-----------------------------------------------------------------------------
+ 103          //
+ 104          // Called after any USB type interrupt, this handler determines which type
+ 105          // of interrupt occurred, and calls the specific routine to handle it.
+ 106          //
+ 107          //-----------------------------------------------------------------------------
+ 108          void SPI_ISR() interrupt 6
+ 109          {
+ 110                  //Holder for received byte
+ 111                  int RXbyte;
+C51 COMPILER V8.18   INTERRUPTS                                                            01/01/2011 16:04:21 PAGE 3   
+
+ 112          
+ 113                  // Interrupt flag, 4 possibilities (p. 199)
+ 114                  //      0x80 = TX complete, receive byte ready to read
+ 115                  //      0x40 = write collision, when SPI0DAT is written prior to last TX
+ 116                  //      0x20 = mode fault, NSS is pulled low during multi-master mode
+ 117                  //      0x10 = RX overrun, received a byte before last one was read (slave mode)
+ 118          
+ 119                  // Determine what caused the interrupt
+ 120                  if ((SPI0CN & 0x80) == 0x80)            // TX complete, byte ready to read
+ 121                  {
+ 122                          SPIF = 0;                       // clear interrupt flag
+ 123          
+ 124                          RXbyte = SPI0DAT;       // This could be a byte from the DAC, ADC, or RAM.
+ 125                          if (Writing_to_ADC > 0)                 // ADC
+ 126                          {
+ 127                                  SPI_ADC_Bytes++;                        // Do not zero in this ISR
+ 128                                  if (SPI_ADC_Bytes == 0)
+ 129                                  {
+ 130                                          latest_ADC_HighByte = RXbyte;
+ 131                                  }
+ 132                                  else
+ 133                                  {
+ 134                                          latest_ADC_LowByte = RXbyte;
+ 135                                  }
+ 136                          }
+ 137                          else if (Writing_to_DAC > 0)    // DAC
+ 138                          {
+ 139                                  SPI_DAC_Bytes++;                        // Do not zero in this ISR
+ 140                          }
+ 141                          else                                                    // ERROR
+ 142                          {
+ 143                                  POLL_WRITE_BYTE(bError, 1);
+ 144                          }
+ 145                  }
+ 146                  if ((SPI0CN & 0x40) == 0x40)    // write collision
+ 147                  {
+ 148                          WCOL = 0;               // clear interrupt flag
+ 149                  }
+ 150                  if ((SPI0CN & 0x20) == 0x20)    // mode fault
+ 151                  {
+ 152                          MODF = 0;               // clear interrupt flag
+ 153                  }
+ 154                  if ((SPI0CN & 0x10) == 0x10)    // RX overrun
+ 155                  {
+ 156                          RXOVRN = 0;             // clear interrupt flag
+ 157                  }
+ 158          }
+ 159          
+ 160          
+ 161          //-----------------------------------------------------------------------------
+ 162          // Support Routines for ISR
+ 163          //-----------------------------------------------------------------------------
+ 164          
+ 165          //-----------------------------------------------------------------------------
+ 166          // Usb_Reset
+ 167          //-----------------------------------------------------------------------------
+ 168          //
+ 169          // Return Value : None
+ 170          // Parameters   : None
+ 171          //
+ 172          // - Set state to default
+ 173          // - Clear Usb Inhibit bit
+C51 COMPILER V8.18   INTERRUPTS                                                            01/01/2011 16:04:21 PAGE 4   
+
+ 174          //
+ 175          //-----------------------------------------------------------------------------
+ 176          void Usb_Reset(void)
+ 177          {
+ 178             USB_State = DEV_DEFAULT;            // Set device state to default
+ 179          
+ 180             POLL_WRITE_BYTE(POWER, 0x01);       // Clear usb inhibit bit to enable USB
+ 181                                                 // suspend detection
+ 182          
+ 183             Ep_Status[0] = EP_IDLE;             // Set default Endpoint Status
+ 184             Ep_Status[1] = EP_HALT;
+ 185             Ep_Status[2] = EP_HALT;
+ 186          }
+ 187          
+ 188          
+ 189          //-----------------------------------------------------------------------------
+ 190          // Handle_Setup
+ 191          //-----------------------------------------------------------------------------
+ 192          //
+ 193          // Return Value : None
+ 194          // Parameters   : None
+ 195          //
+ 196          // - Decode Incoming Setup requests
+ 197          // - Load data packets on fifo while in transmit mode
+ 198          //
+ 199          //-----------------------------------------------------------------------------
+ 200          
+ 201          void Handle_Setup(void)
+ 202          {
+ 203             BYTE ControlReg,TempReg;            // Temporary storage for EP control
+ 204                                                 // register
+ 205          
+ 206             POLL_WRITE_BYTE(INDEX, 0);          // Set Index to Endpoint Zero
+ 207             POLL_READ_BYTE(E0CSR, ControlReg);  // Read control register
+ 208          
+ 209             if (Ep_Status[0] == EP_ADDRESS)     // Handle Status Phase of Set Address
+ 210                                                 // command
+ 211             {
+ 212                POLL_WRITE_BYTE(FADDR, Setup.wValue.c[LSB]);
+ 213                Ep_Status[0] = EP_IDLE;
+ 214             }
+ 215          
+ 216             if (ControlReg & rbSTSTL)           // If last packet was a sent stall, reset
+ 217             {                                   // STSTL bit and return EP0 to idle state
+ 218                POLL_WRITE_BYTE(E0CSR, 0);
+ 219                Ep_Status[0] = EP_IDLE;
+ 220                return;
+ 221             }
+ 222          
+ 223             if (ControlReg & rbSUEND)           // If last setup transaction was ended
+ 224             {                                   // prematurely then set
+ 225                POLL_WRITE_BYTE(E0CSR, rbDATAEND);
+ 226                POLL_WRITE_BYTE(E0CSR, rbSSUEND); // Serviced Setup End bit and return EP0
+ 227                Ep_Status[0] = EP_IDLE;          // to idle state
+ 228             }
+ 229          
+ 230             if (Ep_Status[0] == EP_IDLE)        // If Endpoint 0 is in idle mode
+ 231             {
+ 232                if (ControlReg & rbOPRDY)        // Make sure that EP 0 has an Out Packet ready from host
+ 233                {                                // although if EP0 is idle, this should always be the case
+ 234                   Fifo_Read(FIFO_EP0, 8, (BYTE *)&Setup);
+ 235                                                  // Get Setup Packet off of Fifo, it is currently Big-Endian
+C51 COMPILER V8.18   INTERRUPTS                                                            01/01/2011 16:04:21 PAGE 5   
+
+ 236          
+ 237                                                 // Compiler Specific - these next three statements swap the
+ 238                                                 // bytes of the setup packet words to Big Endian so they
+ 239                                                 // can be compared to other 16-bit values elsewhere properly
+ 240                   Setup.wValue.i = Setup.wValue.c[MSB] + 256*Setup.wValue.c[LSB];
+ 241                   Setup.wIndex.i = Setup.wIndex.c[MSB] + 256*Setup.wIndex.c[LSB];
+ 242                   Setup.wLength.i = Setup.wLength.c[MSB] + 256*Setup.wLength.c[LSB];
+ 243          
+ 244          
+ 245                   switch(Setup.bRequest)        // Call correct subroutine to handle each kind of
+ 246                   {                             // standard request
+ 247                      case GET_STATUS:
+ 248                         Get_Status();
+ 249                         break;
+ 250                      case CLEAR_FEATURE:
+ 251                         Clear_Feature();
+ 252                         break;
+ 253                      case SET_FEATURE:
+ 254                         Set_Feature();
+ 255                         break;
+ 256                      case SET_ADDRESS:
+ 257                         Set_Address();
+ 258                         break;
+ 259                      case GET_DESCRIPTOR:
+ 260                         Get_Descriptor();
+ 261                         break;
+ 262                      case GET_CONFIGURATION:
+ 263                         Get_Configuration();
+ 264                         break;
+ 265                      case SET_CONFIGURATION:
+ 266                         Set_Configuration();
+ 267                         break;
+ 268                      case GET_INTERFACE:
+ 269                         Get_Interface();
+ 270                         break;
+ 271                      case SET_INTERFACE:
+ 272                         Set_Interface();
+ 273                         break;
+ 274                      default:
+ 275                         Force_Stall();          // Send stall to host if invalid request
+ 276                         break;
+ 277                   }
+ 278                }
+ 279             }
+ 280          
+ 281             if (Ep_Status[0] == EP_TX)          // See if the endpoint has data to transmit to host
+ 282             {
+ 283                if (!(ControlReg & rbINPRDY))    // Make sure you don't overwrite last packet
+ 284                {
+ 285                                                 // Endpoint 0 transmit mode
+ 286                   
+ 287                   POLL_READ_BYTE(E0CSR, ControlReg);
+ 288                                                 // Read control register
+ 289          
+ 290                   if ((!(ControlReg & rbSUEND)) || (!(ControlReg & rbOPRDY)))
+ 291                                                 // Check to see if Setup End or Out Packet received, if so
+ 292                                                 // do not put any new data on FIFO
+ 293                   {
+ 294                      TempReg = rbINPRDY;        // Add In Packet ready flag to E0CSR bitmask
+ 295          
+ 296                                                 // Break Data into multiple packets if larger than Max Packet
+ 297                      if (DataSize >= EP0_PACKET_SIZE)
+C51 COMPILER V8.18   INTERRUPTS                                                            01/01/2011 16:04:21 PAGE 6   
+
+ 298                      {
+ 299                         Fifo_Write(FIFO_EP0, EP0_PACKET_SIZE, (BYTE *)DataPtr);// Put Data on Fifo
+ 300                         DataPtr  += EP0_PACKET_SIZE;                           // Advance data pointer
+ 301                         DataSize -= EP0_PACKET_SIZE;                           // Decrement data size
+ 302                         DataSent += EP0_PACKET_SIZE;                           // Increment data sent counter
+ 303                      }
+ 304                      else                       // If data is less than Max Packet size or zero
+ 305                      {
+ 306                         Fifo_Write(FIFO_EP0, DataSize, (BYTE *)DataPtr);       // Put Data on Fifo
+ 307                         TempReg |= rbDATAEND;                                  // Add Data End bit to bitmask
+ 308                         Ep_Status[0] = EP_IDLE;                                // Return EP 0 to idle state
+ 309                      }
+ 310                      if (DataSent == Setup.wLength.i)
+ 311                                                  // This case exists when the host requests an even multiple of
+ 312                                                  // your endpoint zero max packet size, and you need to exit
+ 313                                                  // transmit mode without sending a zero length packet
+ 314                      {
+ 315                         TempReg |= rbDATAEND;    // Add Data End bit to mask
+ 316                         Ep_Status[0] = EP_IDLE;  // and return Endpoint 0 to an idle state
+ 317                      }
+ 318                      POLL_WRITE_BYTE(E0CSR, TempReg);                          // Write mask to E0CSR
+ 319                   }
+ 320                }
+ 321             }
+ 322          }
+ 323          
+ 324          
+ 325          //-----------------------------------------------------------------------------
+ 326          // Handle_In1
+ 327          //-----------------------------------------------------------------------------
+ 328          //
+ 329          // Return Value : None
+ 330          // Parameters   : None
+ 331          //
+ 332          // This routine loads the current value from In_Packet on the Endpoint 1 fifo,
+ 333          // after  an interrupt is received from the last packet being transmitted
+ 334          //
+ 335          //-----------------------------------------------------------------------------
+ 336          void Handle_In1()
+ 337          {
+ 338             BYTE ControlReg;
+ 339          
+ 340             POLL_WRITE_BYTE(INDEX, 1);           // Set index to endpoint 1 registers
+ 341             POLL_READ_BYTE(EINCSR1, ControlReg); // Read contol register for EP 1
+ 342          
+ 343             if (Ep_Status[1] == EP_HALT)         // If endpoint is currently halted, 
+ 344                                                  // send a stall
+ 345             {
+ 346                POLL_WRITE_BYTE(EINCSR1, rbInSDSTL);
+ 347             }
+ 348          
+ 349             else                                 // Otherwise send last updated 
+ 350                                                  // data to host
+ 351             {
+ 352                if (ControlReg & rbInSTSTL)       // Clear sent stall if last packet
+ 353                                                      // returned a stall
+ 354                {
+ 355                   POLL_WRITE_BYTE(EINCSR1, rbInCLRDT);
+ 356                }
+ 357          
+ 358                if (ControlReg & rbInUNDRUN)      // Clear underrun bit if it was set
+ 359                {
+C51 COMPILER V8.18   INTERRUPTS                                                            01/01/2011 16:04:21 PAGE 7   
+
+ 360                   POLL_WRITE_BYTE(EINCSR1, 0x00);
+ 361                }
+ 362          
+ 363                    //Call the Endpoint1 function to do the
+ 364                    //actual work
+ 365                    Endpoint1();
+ 366             }                                    
+ 367          }
+ 368          
+ 369          
+ 370          //-----------------------------------------------------------------------------
+ 371          // Endpoint1
+ 372          //-----------------------------------------------------------------------------
+ 373          //
+ 374          // Return Value : None
+ 375          // Parameters   : None
+ 376          //
+ 377          // Reads the values from the FIFO to get the operation
+ 378          // code and parameters and performs the operation. 
+ 379          //-----------------------------------------------------------------------------
+ 380          void Endpoint1()
+ 381          {
+ 382                  //Declare local variables
+ 383                  BYTE bEP = 0x01;                                //Endpoint 1 local variable
+ 384                  unsigned int uNumBytes = 1;             //Number of bytes to read
+ 385                  BYTE bOp = 0x00;                                //Operation to perform
+ 386          
+ 387                  //Read the operation code from the FIFO
+ 388                  Fifo_Read(bEP, uNumBytes, &bOp);
+ 389          
+ 390                  //Switch on the operation code
+ 391                  switch (bOp)
+ 392                  {
+ 393                          case OP_SET_VOLTAGE:
+ 394                                  SetVoltage();
+ 395                                  break;
+ 396          
+ 397                          case OP_SET_LASER:
+ 398                                  SetLaser();
+ 399                                  break;
+ 400          
+ 401                          case OP_PULSE_MOTOR:
+ 402                                  PulseMotor();
+ 403                                  break;
+ 404                  }
+ 405          }
+ 406          
+ 407          
+ 408          //-----------------------------------------------------------------------------
+ 409          // SetVoltage
+ 410          //-----------------------------------------------------------------------------
+ 411          //
+ 412          // Return Value : None
+ 413          // Parameters   : None
+ 414          //
+ 415          // Reads the voltage from the FIFO and sets the value
+ 416          // on the DAC. 
+ 417          //
+ 418          //      POSITIVE voltage at the reference node and a positive current into
+ 419          //      the working node, use a _negative_ voltage at the DAC output:
+ 420          //      Value = 0x10000 - |Voltage| * 3277 - 0x0024
+ 421          //   Example: to get +0.1 V at the reference node, output -0.1 V at the DAC
+C51 COMPILER V8.18   INTERRUPTS                                                            01/01/2011 16:04:21 PAGE 8   
+
+ 422          //   0x10000 - 0.1 * 3277 = 0xFEB8 = 65244
+ 423          //
+ 424          //      NEGATIVE voltage at the reference node and a negative current into
+ 425          //      the working node, use a _positive_ voltage at the DAC output:
+ 426          //      Value = Voltage * 3277 - 0x0024
+ 427          //   Example: to get -0.1 V at the reference node, output +0.1 V at the DAC
+ 428          //   0.1 * 3277 = 0x0148 = 328
+ 429          //-----------------------------------------------------------------------------
+ 430          void SetVoltage()
+ 431          {
+ 432                  //Declare local variables
+ 433                  BYTE bEP = 0x01;                                //Endpoint 1 local variable
+ 434                  unsigned int uNumBytes = 2;             //Number of bytes to read
+ 435                  BYTE pData[2];                                  //Voltage to read
+ 436          
+ 437                  //Read the voltage from the FIFO
+ 438                  Fifo_Read(bEP, uNumBytes, pData);
+ 439          
+ 440                  //If the value is positive, set the bit
+ 441                  if ((float)*pData > 0)
+ 442                  {
+ 443                          POLL_WRITE_BYTE(bPos, 1);
+ 444                  }
+ 445                  else
+ 446                  {
+ 447                          POLL_WRITE_BYTE(bPos, 0);
+ 448                  }
+ 449          
+ 450                  //Show that the DAC is being used
+ 451                  Writing_to_DAC = 1;
+ 452          
+ 453                  //Set the voltage on the DAC
+ 454                  POLL_WRITE_BYTE(bNotDACCS, 0);  // Select the DAC for SPI communication
+ 455                  SPI0DAT = 0x00;                                 // 0x00 = 0000 0000
+ 456                  while(SPI_DAC_Bytes != 1) {}    // wait for SPI to finish sending byte
+ 457                  SPI0DAT = pData[0];                     // Upper part of byte
+ 458                  while(SPI_DAC_Bytes != 2) {}    // wait for SPI to finish sending byte
+ 459                  SPI0DAT = pData[1];                     // Lower part of byte
+ 460                  while(SPI_DAC_Bytes != 3) {}    // wait for SPI to finish sending byte
+ 461                  SPI_DAC_Bytes = 0;                              // Reset byte TX counter
+ 462                  POLL_WRITE_BYTE(bNotDACCS, 1);  // Deselect the DAC for SPI communication
+ 463          
+ 464                  //Reset the DAC write boolean
+ 465                  Writing_to_DAC = 0;
+ 466          }
+ 467          
+ 468          
+ 469          //-----------------------------------------------------------------------------
+ 470          // SetLaser
+ 471          //-----------------------------------------------------------------------------
+ 472          //
+ 473          // Return Value : None
+ 474          // Parameters   : None
+ 475          //
+ 476          // Reads the boolean from the FIFO and sets the value
+ 477          // on the Laser bit. 
+ 478          //-----------------------------------------------------------------------------
+ 479          void SetLaser()
+ 480          {
+ 481                  //Declare local variables
+ 482                  BYTE bEP = 0x01;                                //Endpoint 1 local variable
+ 483                  unsigned int uNumBytes = 1;             //Number of bytes to read
+C51 COMPILER V8.18   INTERRUPTS                                                            01/01/2011 16:04:21 PAGE 9   
+
+ 484                  BYTE bState = 0x00;                             //State of the Laser to read
+ 485          
+ 486                  //Read the state from the FIFO
+ 487                  Fifo_Read(bEP, uNumBytes, &bState);
+ 488          
+ 489                  //Set the bit for the Laser
+ 490                  POLL_WRITE_BYTE(bLaser, bState);
+ 491          }
+ 492          
+ 493          
+ 494          //-----------------------------------------------------------------------------
+ 495          // PulseMotor
+ 496          //-----------------------------------------------------------------------------
+ 497          //
+ 498          // Return Value : None
+ 499          // Parameters   : None
+ 500          //
+ 501          // Reads the motor bit and direction bit from the FIFO 
+ 502          // and pulses the motor driver. 
+ 503          //-----------------------------------------------------------------------------
+ 504          void PulseMotor()
+ 505          {
+ 506                  //Declare local variables
+ 507                  BYTE bEP = 0x01;                                        //Endpoint 1 local variable
+ 508                  unsigned int uNumBytes = 1;                     //Number of bytes to read
+ 509                  BYTE bMotor = MOTOR_X;                          //Motor bit to read
+ 510                  BYTE bDir = DIR_FWD;                            //Direction bit to read
+ 511                  BYTE bMtrStep = bMtr1Step;                      //Motor to step
+ 512                  BYTE bMtrDir = bMtr1Dir;                        //Direction to step
+ 513                  unsigned int uDelay = 12500;            //Delay counter
+ 514          
+ 515                  //Read the Motor code from the FIFO
+ 516                  Fifo_Read(bEP, uNumBytes, &bMotor);
+ 517          
+ 518                  //Read the Direction code from the FIFO
+ 519                  Fifo_Read(bEP, uNumBytes, &bDir);
+ 520          
+ 521                  //Setup the Motor register
+ 522                  if (bMotor == MOTOR_Y)
+ 523                  {
+ 524                          bMtrStep = bMtr2Step;
+ 525                          bMtrDir = bMtr2Dir;
+ 526                  }
+ 527          
+ 528                  //Enable the Motor driver
+ 529                  POLL_WRITE_BYTE(bMtrDrvrEn, 0x01);
+ 530          
+ 531                  //Set the Direction bit
+ 532                  POLL_WRITE_BYTE(bMtrDir, bDir);
+ 533          
+ 534                  //Set the motor bit to high
+ 535                  POLL_WRITE_BYTE(bMtrStep, 0x01);
+ 536          
+ 537                  //Wait 500 us
+ 538                  while (uDelay--);
+ 539                  
+ 540                  //Set the motor bit to low
+ 541                  POLL_WRITE_BYTE(bMtrStep, 0x00);
+ 542          }
+ 543          
+ 544          
+ 545          //-----------------------------------------------------------------------------
+C51 COMPILER V8.18   INTERRUPTS                                                            01/01/2011 16:04:21 PAGE 10  
+
+ 546          // Handle_Out2
+ 547          //-----------------------------------------------------------------------------
+ 548          //
+ 549          // Return Value : None
+ 550          // Parameters   : None
+ 551          //
+ 552          // Take the received packet from the host off the fifo and put it into
+ 553          // the Out_Packet array
+ 554          //
+ 555          //-----------------------------------------------------------------------------
+ 556          void Handle_Out2()
+ 557          {
+ 558             BYTE Count = 0;
+ 559             BYTE ControlReg;
+ 560          
+ 561             POLL_WRITE_BYTE(INDEX, 2);          // Set index to endpoint 2 registers
+ 562             POLL_READ_BYTE(EOUTCSR1, ControlReg);
+ 563          
+ 564             if (Ep_Status[2] == EP_HALT)        // If endpoint is halted, send a stall
+ 565             {
+ 566                POLL_WRITE_BYTE(EOUTCSR1, rbOutSDSTL);
+ 567             }
+ 568          
+ 569             else                                // Otherwise read packet from host
+ 570             {
+ 571                if (ControlReg & rbOutSTSTL)     // Clear sent stall bit if last packet 
+ 572                                                 // was a stall
+ 573                {
+ 574                   POLL_WRITE_BYTE(EOUTCSR1, rbOutCLRDT);
+ 575                }
+ 576          
+ 577                POLL_READ_BYTE(EOUTCNTL, Count);
+ 578                if (Count != EP2_PACKET_SIZE)    // If host did not send correct packet 
+ 579                                                     // size, flush buffer
+ 580                {
+ 581                   POLL_WRITE_BYTE(EOUTCNTL, rbOutFLUSH);
+ 582                }
+ 583                else                             // Otherwise get the data packet
+ 584                {
+ 585                       Endpoint2();
+ 586                }
+ 587                POLL_WRITE_BYTE(EOUTCSR1, 0);    // Clear Out Packet ready bit
+ 588             }
+ 589          }
+ 590          
+ 591          
+ 592          //-----------------------------------------------------------------------------
+ 593          // Endpoint2
+ 594          //-----------------------------------------------------------------------------
+ 595          //
+ 596          // Return Value : None
+ 597          // Parameters   : None
+ 598          //
+ 599          // Reads the value from the FIFO to get the OP_READ_CURRENT
+ 600          // operation code and returns the current value.
+ 601          //-----------------------------------------------------------------------------
+ 602          void Endpoint2()
+ 603          {
+ 604                  //Declare local variables
+ 605                  BYTE bEP = 0x02;                                //Endpoint 2 local variable
+ 606                  unsigned int uNumBytes = 1;             //Number of bytes to read
+ 607                  BYTE bOp = 0x00;                                //Operation to perform
+C51 COMPILER V8.18   INTERRUPTS                                                            01/01/2011 16:04:21 PAGE 11  
+
+ 608          
+ 609                  //Read the operation code from the FIFO
+ 610                  Fifo_Read(bEP, uNumBytes, &bOp);
+ 611          
+ 612                  //If the operation code is OP_GET_CURRENT,
+ 613                  //get the current and write it to the FIFO
+ 614                  if (bOp == OP_GET_CURRENT)
+ 615                          ReadCurrent();
+ 616          }
+ 617          
+ 618          
+ 619          //-----------------------------------------------------------------------------
+ 620          // ReadCurrent
+ 621          //-----------------------------------------------------------------------------
+ 622          //
+ 623          // Return Value : None
+ 624          // Parameters   : None
+ 625          //
+ 626          // Reads the value from the FIFO to get the OP_GET_CURRENT
+ 627          // operation code and returns the current value.
+ 628          //-----------------------------------------------------------------------------
+ 629          void ReadCurrent()
+ 630          {
+ 631                  //Declare local variables
+ 632                  BYTE bEP = 0x02;                                //Endpoint 2 local variable
+ 633                  unsigned int uNumBytes = 2;             //Number of bytes to write
+ 634                  BYTE pData[2];                                  //Data to write to FIFO
+ 635          
+ 636                  //Get the data from the ADC
+ 637          
+ 638                  //Write the data to the FIFO
+ 639                  Fifo_Write(bEP, uNumBytes, pData);
+ 640          }
+ 641          
+ 642          
+ 643          //-----------------------------------------------------------------------------
+ 644          // Usb_Suspend
+ 645          //-----------------------------------------------------------------------------
+ 646          //
+ 647          // Return Value : None
+ 648          // Parameters   : None
+ 649          //
+ 650          // Enter suspend mode after suspend signalling is present on the bus
+ 651          //
+ 652          //-----------------------------------------------------------------------------
+ 653          void Usb_Suspend(void)
+ 654          {          
+ 655             // Put the device in a low power configuration
+ 656                                         
+ 657             P0MDIN  = 0x00;                     // Port 0 configured as analog input
+ 658             P1MDIN  = 0x00;                     // Port 1 configured as analog input
+ 659             P2MDIN  = 0x00;                     // Port 2 configured as analog input
+ 660             P3MDIN  = 0x00;                     // Port 3 configured as analog input
+ 661          
+ 662             ADC0CN &= ~0x80;                    // Disable ADC0
+ 663             REF0CN  = 0x00;                     // Disable voltage reference
+ 664          
+ 665             OSCICN |= 0x20;                     // Put oscillator 
+ 666          
+ 667             // When the device receives a non-idle USB event, it will resume execution
+ 668             // on the instruction that follows OSCICN |= 0x20.  
+ 669          
+C51 COMPILER V8.18   INTERRUPTS                                                            01/01/2011 16:04:21 PAGE 12  
+
+ 670             // Re-enable everything that was disabled when going into Suspend
+ 671          
+ 672             P0MDIN  = 0xFF;                     // Port 0 configured as analog input
+ 673             P1MDIN  = 0x7F;                     // Port 1 pin 7 set as analog input
+ 674             P2MDIN  = 0xFF;                     // Port 2 configured as analog input
+ 675             P3MDIN  = 0xFF;                     // Port 3 configured as analog input
+ 676          
+ 677             REF0CN  = 0x0E;                     // Enable voltage reference VREF
+ 678             ADC0CN |= 0x80;                     // Re-enable ADC
+ 679          }
+ 680          
+ 681          
+ 682          //-----------------------------------------------------------------------------
+ 683          // Usb_Resume
+ 684          //-----------------------------------------------------------------------------
+ 685          //
+ 686          // Return Value : None
+ 687          // Parameters   : None
+ 688          //
+ 689          // Resume normal USB operation
+ 690          //
+ 691          //-----------------------------------------------------------------------------
+ 692          void Usb_Resume(void)
+ 693          {
+ 694             volatile int k;
+ 695          
+ 696             k++;
+ 697          
+ 698             // Add code for resume
+ 699          }
+ 700          
+ 701          
+ 702          //-----------------------------------------------------------------------------
+ 703          // Fifo_Read
+ 704          //-----------------------------------------------------------------------------
+ 705          //
+ 706          // Return Value : None
+ 707          // Parameters   :
+ 708          //                1) BYTE addr : target address
+ 709          //                2) unsigned int uNumBytes : number of bytes to unload
+ 710          //                3) BYTE * pData : read data destination
+ 711          //
+ 712          // Read from the selected endpoint FIFO
+ 713          //
+ 714          //-----------------------------------------------------------------------------
+ 715          void Fifo_Read(BYTE addr, unsigned int uNumBytes, BYTE * pData)
+ 716          {
+ 717             int i;
+ 718          
+ 719             if (uNumBytes)                         // Check if >0 bytes requested,
+ 720             {
+ 721                USB0ADR = (addr);                   // Set address
+ 722                USB0ADR |= 0xC0;                    // Set auto-read and initiate
+ 723                                                    // first read
+ 724          
+ 725                // Unload <NumBytes> from the selected FIFO
+ 726                for(i=0;i<uNumBytes-1;i++)
+ 727                {
+ 728                   while(USB0ADR & 0x80);           // Wait for BUSY->'0' (data ready)
+ 729                   pData[i] = USB0DAT;              // Copy data byte
+ 730                }
+ 731          
+C51 COMPILER V8.18   INTERRUPTS                                                            01/01/2011 16:04:21 PAGE 13  
+
+ 732                USB0ADR = 0;                           // Clear auto-read
+ 733          
+ 734                while(USB0ADR & 0x80);               // Wait for BUSY->'0' (data ready)
+ 735                pData[i] = USB0DAT;                  // Copy data byte
+ 736             }
+ 737          }
+ 738          
+ 739          
+ 740          //-----------------------------------------------------------------------------
+ 741          // Fifo_Write
+ 742          //-----------------------------------------------------------------------------
+ 743          //
+ 744          // Return Value : None
+ 745          // Parameters   :
+ 746          //                1) BYTE addr : target address
+ 747          //                2) unsigned int uNumBytes : number of bytes to unload
+ 748          //                3) BYTE * pData : location of source data
+ 749          //
+ 750          // Write to the selected endpoint FIFO
+ 751          //
+ 752          //-----------------------------------------------------------------------------
+ 753          void Fifo_Write(BYTE addr, unsigned int uNumBytes, BYTE * pData)
+ 754          {
+ 755             int i;
+ 756          
+ 757             // If >0 bytes requested,
+ 758             if (uNumBytes)
+ 759             {
+ 760                while(USB0ADR & 0x80);              // Wait for BUSY->'0'
+ 761                                                    // (register available)
+ 762                USB0ADR = (addr);                   // Set address (mask out bits7-6)
+ 763          
+ 764                // Write <NumBytes> to the selected FIFO
+ 765                for(i=0;i<uNumBytes;i++)
+ 766                {
+ 767                   USB0DAT = pData[i];
+ 768                   while(USB0ADR & 0x80);           // Wait for BUSY->'0' (data ready)
+ 769                }
+ 770             }
+ 771          }
+ 772          
+ 773          
+ 774          //-----------------------------------------------------------------------------
+ 775          // Force_Stall
+ 776          //-----------------------------------------------------------------------------
+ 777          //
+ 778          // Return Value : None
+ 779          // Parameters   : None
+ 780          //
+ 781          // Force a procedural stall to be sent to the host
+ 782          //
+ 783          //-----------------------------------------------------------------------------
+ 784          void Force_Stall(void)
+ 785          {
+ 786             POLL_WRITE_BYTE(INDEX, 0);
+ 787             POLL_WRITE_BYTE(E0CSR, rbSDSTL);       // Set the send stall bit
+ 788             Ep_Status[0] = EP_STALL;               // Put the endpoint in stall status
+ 789          }
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  6 ERROR(S)

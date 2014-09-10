@@ -1,0 +1,19 @@
+-myuxi
+-Y
+-z
+-b HOME = 0x0000
+-b ISEG = 0x0000
+-b BSEG = 0x0000
+-k C:\Program Files (x86)\SDCC\bin\..\lib\small
+-l mcs51
+-l libsdcc
+-l libint
+-l liblong
+-l libfloat
+C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\Main.rel
+C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Descriptors.rel
+C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.rel
+C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Utilities.rel
+C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\Interrupts.rel
+
+-e

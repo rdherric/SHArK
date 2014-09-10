@@ -1,0 +1,98 @@
+C51 COMPILER V8.18   MAIN                                                                  01/09/2011 12:30:01 PAGE 1   
+
+
+C51 COMPILER V8.18, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN Main.OBJ
+COMPILER INVOKED BY: C:\SiLabs\MCU\IDEfiles\C51\BIN\C51.exe Main.c DB OE BR INCDIR(C:\SiLabs\MCU\Inc)
+
+line level    source
+
+   1          //-----------------------------------------------------------------------------
+   2          // Main.c
+   3          //-----------------------------------------------------------------------------
+   4          // Copyright (C) RDH2 Science, LLC
+   5          // http://www.rdh2.com
+   6          //
+   7          // Main.c contains the functionality required to run
+   8          // the RDH2 Potentiostat.  This is only very basic 
+   9          // functionality, without the timer and other operations.
+  10          //
+  11          // Target:         C8051F32x
+  12          // Tool chain:     Keil compiler
+  13          // Command Line:   None
+  14          //
+  15          // Release 1.0 / Not Released
+  16          //    -Initial Revision
+  17          
+  18          
+  19          //-----------------------------------------------------------------------------
+  20          // Includes
+  21          //-----------------------------------------------------------------------------
+  22          #include <compiler_defs.h>
+  23          #include <C8051F320_defs.h>
+  24          #include "Main.h"
+  25          #include "McuIO.h"
+  26          #include "SpiIO.h"
+  27          #include "UsbIO.h"
+  28          #include "Registers.h"
+  29          
+  30          
+  31          //-----------------------------------------------------------------------------
+  32          // Extern Global Variables
+  33          //-----------------------------------------------------------------------------
+  34          extern U8 dacWrite;
+  35          extern U8 adcWrite;
+  36          extern U8 bytesWritten;
+  37          extern U8 adcHigh;
+  38          extern U8 adcLow;
+  39          extern U16 delay;
+  40          
+  41          
+  42          //-----------------------------------------------------------------------------
+  43          // MAIN Routine
+  44          //-----------------------------------------------------------------------------
+  45          void main (void)
+  46          {
+  47   1              // Disable watchdog timer
+  48   1              PCA0MD &= ~0x40;
+  49   1      
+  50   1              // Initialize system clock to 24 MHz
+  51   1              // and USB clock to 48 MHz
+  52   1              InitSYSCLK();
+  53   1                                                                              
+  54   1              // Initialize crossbar and GPIO
+  55   1              InitPORT();                                     
+C51 COMPILER V8.18   MAIN                                                                  01/09/2011 12:30:01 PAGE 2   
+
+  56   1      
+  57   1              // Enable global interrupts
+  58   1              EA = 1;                                                 
+  59   1      
+  60   1              //Setup the SPI peripheral and the DAC / ADC chips
+  61   1              InitSPI();
+  62   1              InitDAC();
+  63   1              InitADC();
+  64   1      
+  65   1              //Enable the USB port
+  66   1              InitUSB0();
+  67   1      
+  68   1              // Enable output, close relay K601
+  69   1              OUTPUTEN = 1;
+  70   1      
+  71   1              // Loop doing nothing waiting for interrupts
+  72   1              while (1) { NOP(); }
+  73   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     28    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

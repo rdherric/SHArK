@@ -1,0 +1,890 @@
+//-----------------------------------------------------------------------------
+// potentiostat_2v0.c
+//-----------------------------------------------------------------------------
+// Copyright (C) RDHC2, LLC
+// http://www.rdh2.com/
+//
+// Program Description:
+//
+// This program is to verify the potentiostat hardware.
+// Specifically, it verifies the functionality of the DAC and ADC for
+// setting the output voltage and measuring the resulting current.
+//
+//
+// Target:         C8051F32x
+// Tool chain:     SDCC 2.7.0 (version may not be correct)
+// Command Line:   None
+//
+// Release 1.0 / Not Released
+//    -Initial Revision
+
+//-----------------------------------------------------------------------------
+// Includes
+//-----------------------------------------------------------------------------
+
+//#include <stdio.h>
+#include <math.h>
+// #include <floatlib.c>
+#include "compiler_defs.h"
+#include "C8051F320_defs.h"            // SFR declarations
+
+//-----------------------------------------------------------------------------
+// Global CONSTANTS
+//-----------------------------------------------------------------------------
+
+#define SYSCLK       24000000			// SYSCLK frequency in Hz
+#define round(x) ((x)>=0?(int)((x)+0.5):(int)((x)-0.5))
+
+// Define names for bits in special function registers.
+// If these change, update PORT_Init() also.
+SBIT(M2DIR, SFR_P0, 3);					// Motor 2 direction
+SBIT(M2STEP, SFR_P0, 4);				// Motor 2 step (on rising edge)
+SBIT(NDRIVEREN, SFR_P0,5);				// Not stepper motor driver enable
+SBIT(M1DIR, SFR_P1, 6);					// Motor 1 direction
+SBIT(M1STEP, SFR_P0, 7);				// Motor 1 step (on rising edge)
+SBIT(INTTL, SFR_P1, 0);					// Input TTL signal
+SBIT(OUTTTL, SFR_P1, 1);				// Output TTL signal (120 Hz, 38 pulses)
+SBIT(LASER, SFR_P1, 2);					// Laser power on
+SBIT(NDACCS, SFR_P1, 4);				// Not CS for DAC SPI
+SBIT(CAL, SFR_P1, 7);					// Calibration on
+SBIT(POS, SFR_P2, 0);					// Positive current
+SBIT(NADCCS, SFR_P2, 1);				// Not CS for ADC SPI
+SBIT(OUTPUTEN, SFR_P2, 3);				// Potentiostat output current enable
+SBIT(NRAMCS, SFR_P2, 6);				// Not CS for RAM SPI
+SBIT(NRAMHOLD, SFR_P2, 7);				// Not hold for RAM
+SBIT(ERRORPIN, SFR_P2, 2);				// Error pin high when there's an error
+
+// Temporary definitions for testing on development board
+SBIT(NotDriverEN, SFR_P0, 5);			// NotDriverEN='0' means driver ICs enabled and
+										// current from the +12 V supply will be flowing.
+SBIT(Motor1Dir, SFR_P0, 6);				// Motor 1 Direction
+SBIT(Motor1Step, SFR_P0, 7);			// Motor 1 Step when this DIO is pulsed
+SBIT(Motor2Dir, SFR_P0, 3);				// Motor 2 Direction
+SBIT(Motor2Step, SFR_P0, 4);			// Motor 2 Step when this DIO is pulsed
+//SBIT(SW2, SFR_P2, 0);					// SW2='0' means switch pressed
+
+// Special Function Register masks
+#define MULRDY	0x20		// Clock multiplier read, SFR is CLKMUL
+
+//-----------------------------------------------------------------------------
+// Function PROTOTYPES
+//-----------------------------------------------------------------------------
+
+void SYSCLK_Init (void);
+void PORT_Init (void);
+void Timer1_Init (void);
+void Timer2_Init (int counts);
+void SPI_Init (void);
+void DAC_Init (void);
+void RAM_Write (void);
+
+INTERRUPT_PROTO(Timer1_ISR, INTERRUPT_TIMER1);
+INTERRUPT_PROTO(Timer2_ISR, INTERRUPT_TIMER2);
+INTERRUPT_PROTO(SPI_ISR, INTERRUPT_SPI0);
+
+// Global variables
+int Writing_to_DAC = 0;					// Boolean: still need to write >=1 byte via SPI
+int Writing_to_ADC = 0;					// Boolean: still need to write >=1 byte via SPI
+int Writing_to_RAM = 0;					// Boolean: still need to write >=1 byte via SPI
+int SPI_DAC_Bytes = 0;					// No. of bytes to/from DAC: 0-3
+int SPI_ADC_Bytes = 0;					// No. of bytes to/from ADC: 0-2
+int SPI_RAM_Bytes = 0;					// No. of bytes to/from RAM: 0-4
+int ADC_timer = 0;						// No. of 1 ms timer intervals after ADC turn on
+int ADC_settled = 0;					// Boolean: ADC ready 12 ms after POR
+int ADC_timer_MSB = 0;					// Software bit to ADC timer
+int latest_ADC_HighByte;				// High ADC measurement byte
+int latest_ADC_LowByte;					// Low ADC measurement byte
+int Write_to_RAM = 0;					// Boolean: need to write ADC to RAM
+unsigned char RAM_to_ptr_low;			// RAM pointer pointing to the next
+unsigned char RAM_to_ptr_high;			// open address for writing
+unsigned char RAM_from_ptr_low;			// RAM pointer pointing to the next
+unsigned char RAM_from_ptr_high;		// unread address for reading
+
+// Testing global variables
+int loop_cnt = 0;
+
+//-----------------------------------------------------------------------------
+// MAIN Routine
+//-----------------------------------------------------------------------------
+void main (void)
+{
+   PCA0MD &= ~0x40;					// Disable watchdog timer
+
+   ERRORPIN = 0;
+   latest_ADC_LowByte = 0;
+   latest_ADC_HighByte = 0;
+
+   SYSCLK_Init ();					// Initialize system clock to 24 MHz
+									// and USB clock to 48 MHz
+
+   Timer1_Init();					// Start the 1 kHz ADC timer
+
+   PORT_Init ();					// Initialize crossbar and GPIO
+//   Timer2_Init (SYSCLK / 12 / 10);	// Init Timer2 to generate
+//									// interrupts at a 10Hz rate.
+
+   EA = 1;							// Enable global interrupts
+
+   SPI_Init();						// Set up SPI peripheral
+   DAC_Init();						// Call just after SPI_Init for proper function
+
+	OUTPUTEN = 1;					// emable output, close relay K601
+	CAL = 0;
+
+	//
+	// Set DAC output voltage (testing)
+	//
+	// To calculate a negative value for a positive Potentiostat output and
+	// positive current
+	//
+	// POSTITIVE voltage at the reference node and a positive current into
+	// the working node, use a _negative voltage at the DAC output:
+	// Value = 0x10000 - |Voltage|*3277 - 0x0024
+	//   Example: to get +0.1 V at the reference node, output -0.1 V at the DAC
+	//   0x10000 - 0.1*3277 = 0xFEB8 = 65244
+	//
+	// NEGATIVE voltage at the reference node and a negative current into
+	// the working node, use a _positive voltage at the DAC output:
+	// Value = Voltage*3277 - 0x0024
+	//   Example: to get -0.1 V at the reference node, output +0.1 V at the DAC
+	//   0.1*3277 = 0x0148 = 328
+	POS = 0;
+	NDACCS = 0;						// Select the DAC for SPI communication
+	Writing_to_DAC = 1;
+	SPI0DAT = 0x00;					// 0x00 = 0000 0000
+	while(SPI_DAC_Bytes != 1) {}	// wait for SPI to finish sending byte
+//	SPI0DAT = upperByte;			// Upper part of byte
+//	was 0x22
+	SPI0DAT = 0xFE;					// Upper part of byte
+	while(SPI_DAC_Bytes != 2) {}	// wait for SPI to finish sending byte
+//	SPI0DAT = lowerByte;			// Lower part of byte
+//	was 0xA6
+	SPI0DAT = 0xB8;					// Lower part of byte
+	while(SPI_DAC_Bytes != 3) {}	// wait for SPI to finish sending byte
+	SPI_DAC_Bytes = 0;				// Reset byte TX counter
+	NDACCS = 1;						// Deselect the DAC for SPI communication
+	Writing_to_DAC = 0;
+
+	// 2 bytes to send
+	//	15 = EN1 = 0 to read data
+	//	14 = EN2 = 0 to read data
+	//	13-00 = Don't care
+	// ADC: send 1010 0000 0000 0000
+	NADCCS = 0;						// Select the ADC for SPI communication
+	Writing_to_ADC = 1;
+	SPI0DAT = 0xA0;					// 0xA0 = 1010 0000
+	while(SPI_ADC_Bytes != 1) {}	// wait for SPI to finish sending byte
+	SPI0DAT = 0x00;					// 0x00 = 0000 0000
+	while(SPI_ADC_Bytes != 2) {}	// wait for SPI to finish sending byte
+	SPI_ADC_Bytes = 0;
+	NADCCS = 1;						// Deselect the ADC for SPI communication
+	Writing_to_ADC = 0;
+
+	while (1)						// infinte while loop
+	{
+		if (Write_to_RAM)
+		{
+			RAM_Write();
+			// Re-enable USB interrupts.
+			EIE1 |= 0x02;					// 0x02 = 0000 0010
+
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
+// SYSCLK_Init
+//-----------------------------------------------------------------------------
+//
+// Return Value: none
+// Parameters:   none
+//
+// This routine initializes the system clock to 24 MHz and the USB clock to
+// 48 MHz (USB 2.0 requirement).  The 4x clock multiplier is employed, so
+// the USB clock is 12 MHz * 4 = 48 MHz.  The system clock is set to the 4x
+// oscillator divided by 2, 12 MHz * 4 / 2 = 24 MHz.  Also enables missing
+// clock detector reset (required for this setup).
+//
+// This setup was verified by blinking an LED using the 16-bit TIMER2 and a
+// loop that ran 10 times.  TIMER2 was run from the system clock / 12.
+// Blink Period =  10 * 2^16 / (24 MHz / (2*12)) = 0.655 s
+// (Factor of 2 for two cycles per blink period.)
+//
+//-----------------------------------------------------------------------------
+void SYSCLK_Init (void)
+{
+	// Local variables
+	int delay = 0;
+
+	// Configure internal oscillator
+	OSCICN = 0x83;
+
+	// Set up clock multiplier to allow for a 48 MHz USB clock.
+	CLKMUL = 0x00;		// Reset clock multiplier
+	CLKMUL |= 0x80;		// Enable multiplier
+	// Delay for >5us (12MHz * 6us = 72 clock cycles)
+	while (delay < 72) { delay += 1; }
+	CLKMUL |= 0xC0;		// Initialize multiplier
+	// Poll for multiplier ready
+	while ((CLKMUL & MULRDY) != MULRDY) { NOP(); }
+	CLKSEL = 0x02;		// USB clock = 4*(Int Osc)
+						// Sys clock = 4*(Int Osc)/2
+
+	RSTSRC = 0x04;		// Enable missing clock detector, required for USB
+}
+
+//-----------------------------------------------------------------------------
+// PORT_Init
+//-----------------------------------------------------------------------------
+//
+// Return Value: none
+// Parameters:   none
+//
+// Configure the Crossbar and GPIO ports.
+//
+// P0.0 - SCK (SPI)
+// P0.1 - MISO (SPI)
+// P0.2 - MOSI (SPI)
+// P0.3 - Motor 2 Direction (Stepper Motor Driver)
+// P0.4 - Motor 2 Step (Stepper Motor Driver)
+// P0.5 - Not Driver Enable (Stepper Motor Driver)
+// P0.6 - Motor 1 Direction (Stepper Motor Driver)
+// P0.7 - Motor 1 Step (Stepper Motor Driver)
+// P1.0 - In TTL
+// P1.1 - Out TTL
+// P1.2 - Laser Power On/Off
+// P1.3 - N/C
+// P1.4 - Not DAC CS (SPI)
+// P1.5 - N/C
+// P1.6 - N/C
+// P1.7 - Calibration (logical)
+// P2.0 - Positive Current (logical)
+// P2.1 - Not ADC CS (SPI)
+// P2.2 - N/C (LED, push-pull, temporary for testing purposes)
+// P2.3 - Output Enable
+// P2.4 - N/C
+// P2.5 - N/C
+// P2.6 - Not RAM CS (SPI)
+// P2.7 - Not RAM Hold
+// P3.0 - N/C
+//
+//-----------------------------------------------------------------------------
+void PORT_Init (void)
+{
+	// Set all port pins as NOT analog inputs.
+	P0MDIN = 0xFF;
+	P1MDIN = 0xFF;
+	P2MDIN = 0xFF;
+	P3MDIN = 0xFF;
+
+	// Select push/pull for all port pins
+	P0MDOUT = 0xFF;
+	P1MDOUT = 0xFF;
+	P2MDOUT = 0xFF;
+	P3MDOUT = 0xFF;
+
+	// Select pins to be skipped by port crossbar
+	P0SKIP = 0x00;
+	P1SKIP = 0x00;
+	P2SKIP = 0x00;
+//	P0SKIP = 0xF8;				// Don't skip the 3 wires for SPI
+//	P1SKIP = 0xFF;
+//	P2SKIP = 0xFF;
+
+	// Assign port pins to peripherals using the port crossbar (p. 131)
+	XBR0 = 0x02;				// Only SPI selected, automatically assigned:
+								// SCK  --> P0.0
+								// MISO --> P0.1
+								// MOSI --> P0.2
+	XBR1 = 0x40;				// Enable crossbar and weak pull-ups
+
+
+	// Initialize the potentiostat state
+	// 1. the SPI Not Chip Select ports to high (P1.4, P2.1, P2.6)
+	// 2. the stepper motor Not Enable to high (P0.5)
+	// 3. the stepper motors "step" ports to low (P0.4, P0.7)
+	// 4. the laser power low (P1.2)
+	// 5. the Calibration signal to low (P1.7)
+	// 6. the current direction signal Positive to high (P2.0)
+	// 7. the Output Enable to low (P2.3)
+	// 8. the Not RAM Hold to high (P2.7)
+//	P0 = 0x20;					// 0x20 = 0010 0000b
+//	P1 = 0x10;					// 0x10 = 0001 0000b
+//	P2 = 0xC3;					// 0xC3 = 1100 0011b
+	NADCCS = 1;
+	NDACCS = 1;
+	NRAMCS = 1;
+	NRAMHOLD = 1;
+	NotDriverEN = 1;			// Enable/disable (0/1) stepper motor driver
+								// A 0 causes current from +12 V to flow!
+	Motor1Dir = 0;
+	Motor2Dir = 0;
+	Motor1Step = 0;
+	Motor2Step = 0;
+	LASER = 0;					// Disable laswer power
+	OUTPUTEN = 0;				// Disable the output until we're ready
+	POS = 1;					// Positive voltage and current
+	CAL = 0;					// Not in calibration state
+
+}
+
+//-----------------------------------------------------------------------------
+// Timer1_Init
+//-----------------------------------------------------------------------------
+//
+// Return Value: none
+// Parameters:   none
+//
+// Configure Timer1 to 8-bit auto-reload and generate an interrupt at
+// interval specified by <counts> using SYSCLK/48 as its time base.
+//
+//-----------------------------------------------------------------------------
+void Timer1_Init (void)
+{
+	// Disable Timer 1 without changing Timer 0
+	TCON &= 0xBF;					// 0xBF = 1011 1111, Stop Timer1
+
+	CKCON &= 0xF6;					// Set Timer 1 to use the prescaled
+	CKCON |= 0x02;					// clock and set prescale to 1/48.
+									// want = xxxx 0x10
+									// 0xF6 = 1111 0110
+									// 0x02 = 0000 0010
+
+	// Set the re-load value to 6 for 2 kHz frequency, then add a
+	// software bit in the interrupt to get to 1 kHz.  Value of 6
+	// gives (256 - 6) = 250 clock cycles between interrupts at
+	// a 24 MHz / 48 = 500 kHz clock frequency.
+	TL1 = 0x06;						// load both so first interrupt is
+	TH1 = 0x06;						// after 0.5 ms.
+
+	// Set up Timer 1 mode (8 bit w/ auto reload) without touching Timer 0
+	TMOD &= 0x2F;					// 0x2F = 0010 1111
+	TMOD |= 0x20;					// 0x20 = 0010 0000
+
+	// Enable Timer 1 without changing Timer 0
+	TCON &= 0x7F;					// 0x7F = 0111 1111, Clear interrupt flag
+	TCON |= 0x40;					// 0x40 = 0100 0000, Start Timer1
+
+	// Set Timer 1 priority to high (low is the default).  This way, Timer 1
+	// will be able to interrupt all other ISR's at piority low.  The ADC timing
+	// is critical, so this should be at high priority.
+	PT1 = 1;
+
+	//// Set up comparator 1 interrupt as the ISR that will handle saving data
+	//// from the ADC to RAM.  The Timer 1 (1 kHz ADC timer) ISR will trigger
+	//// this interrupt to write data to RAM.
+	CPT1CN = 0x80;	// 0x80 = 1000 0000
+//	CP1FIF = 0;		// Set falling edge interrupt flag to 0
+//	CP1RIF = 0;		// Set rising edge interrupt flag to 0
+//	CP1EN = 1;		// Enable comparator (may not be needed since I'm not
+//					// acuatlly using the comparator, just the interrupt.
+	EIE1 |= 0x40;	// 0x40 = 0100 0000
+//	ECP1 = 1;		// Enable comparator 1 interrupt.
+
+	// Enable Timer 1 interrupts
+	ET1 = 1;
+}
+
+//-----------------------------------------------------------------------------
+// Timer2_Init
+//-----------------------------------------------------------------------------
+//
+// Return Value: none
+// Parameters:   none
+//
+// Configure Timer2 to 16-bit auto-reload and generate an interrupt at
+// interval specified by <counts> using SYSCLK/48 as its time base.
+//
+//-----------------------------------------------------------------------------
+void Timer2_Init (int counts)
+{
+   TMR2CN = 0x00;						// Stop Timer2; Clear TF2;
+										// use SYSCLK/12 as timebase
+   CKCON &= ~0x30;						// Timer2 clocked based on T2XCLK;
+
+   //TMR2RL = -counts;					// Init reload values
+   TMR2RL = 0x0000;						// Init reload values
+   TMR2 = 0xffff;						// Set to reload immediately
+   ET2 = 1;								// Enable Timer2 interrupts
+   TR2 = 1;								// Start Timer2
+}
+
+//-----------------------------------------------------------------------------
+// SPI_Init
+//-----------------------------------------------------------------------------
+//
+// Return Value: none
+// Parameters:   none
+//
+// Initialize SPI.  The initialization sets parameters to talk to the DAC
+// (AD5754), so some things are changed later to talk to the ADC and RAM.
+//
+//-----------------------------------------------------------------------------
+void SPI_Init (void)
+{
+	// Set all SPI chip selects to Not Selected or 1
+	NDACCS = 1;
+	NADCCS = 1;
+	NRAMCS = 1;
+
+	// SPI configuration register: SPI0CFG
+	//  7 SPIBSY	R
+	//  6 MSTEN		R/W
+	//  5 CKPHA		R/W
+	//  4 CKPOL		R/W
+	//  3 SLVSEL	R
+	//  2 NSSIN		R
+	//  1 SRMT		R
+	//  0 RXBMT		R
+	SPI0CFG = 0x50;				// 0x60 = 0101 0000
+
+	// SPI control register: SPI0CN
+	//  7 SPIF		R/W
+	//  6 WCOL		R/W
+	//  5 MODF		R/W
+	//  4 RXOVRN	R/W
+	//  3 NSSMD1	R/W
+	//  2 NSSMD0	R/W
+	//  1 TXBMT		R
+	//  0 SPIEN		R/W
+	SPI0CN = 0x01;				// 0x01 = 0000 0001
+
+	// SPI clock rate register: SPI0CKR
+	//  7 SCR7		R/W
+	//  ...
+	//  0 SCR0		R/W
+	// The SPI clock is a divided version of SYSCLK = 24 MHz:
+	//                SYSCLK
+	//  f_SCK = ------------------
+	//           2 x (SPI0CKR + 1)
+	// So f_SCK = 12 MHz (for the DAC and RAM) is SPI0CKR = 0x00
+	// and f_SCK = 2 MHz (for the ADC) is SPI0CKR = 0x05
+	SPI0CKR = 0x05;				// 0x00 = 0000 0101
+
+	// Enable SPI interrupts, SFR IE, bit 6
+	ESPI0 = 1;
+}
+
+//-----------------------------------------------------------------------------
+// DAC_Init
+//-----------------------------------------------------------------------------
+//
+// Return Value: none
+// Parameters:   none
+//
+// Initialize DAC.  Assumes SPI_Init was just called and CKPOL and CKPHA are set
+// correctly.
+//
+//-----------------------------------------------------------------------------
+void DAC_Init (void)
+{
+	Writing_to_DAC = 1;
+
+	////
+	//// SELECT OUTPUT RANGE
+	////
+	// 3 bytes to send
+	//	23 = R/W = 0 for write
+	//	22 = Not used = 0 must be zero
+	//	21-19 = Reg2-Reg0 = 001
+	//	18-16 = A2-A0 = DAC address, A = 000, B = 001, C = 010, D = 011
+	//	15-03 = Don't care
+	//	02-00 = 100 for +/- 10 V
+	// DAC A: send 0000 1000 0000 0000 0000 0100
+	NDACCS = 0;						// Select the DAC for SPI communication
+	SPI0DAT = 0x08;					// 0x08 = 0000 1000
+	while(SPI_DAC_Bytes != 1) {}	// wait for SPI to finish sending byte
+	SPI0DAT = 0x00;					// 0x00 = 0000 0000
+	while(SPI_DAC_Bytes != 2) {}	// wait for SPI to finish sending byte
+	SPI0DAT = 0x04;					// 0x04 = 0000 0100
+	while(SPI_DAC_Bytes != 3) {}	// wait for SPI to finish sending byte
+	SPI_DAC_Bytes -= 3;				// Reset byte TX counter
+	NDACCS = 1;						// Deselect the DAC for SPI communication
+
+	////
+	//// CONTROL REGISTER
+	////
+	// 3 bytes to send
+	//	23 = R/W = 0 for write
+	//	22 = Not used = 0 must be zero
+	//	21-19 = Reg2-Reg0 = 011
+	//	18-16 = A2-A0 = command, = 001 for various enables/disables
+	//	15-04 = Don't care
+	//	03 = thermal shutdown enable = 1 for enable
+	//	02 = current clamp enable = 1 for enable
+	//	01 = clear select = 1 for full range
+	//	00 = serial data out disable = 0 for enable
+	// DAC A: send 0001 1001 0000 0000 0000 1110
+	NDACCS = 0;						// Select the DAC for SPI communication
+	SPI0DAT = 0x19;					// 0x19 = 0001 1001
+	while(SPI_DAC_Bytes != 1) {}	// wait for SPI to finish sending byte
+	SPI0DAT = 0x00;					// 0x00 = 0000 0000
+	while(SPI_DAC_Bytes != 2) {}	// wait for SPI to finish sending byte
+	SPI0DAT = 0x0E;					// 0x0E = 0000 1110
+	while(SPI_DAC_Bytes != 3) {}	// wait for SPI to finish sending byte
+	SPI_DAC_Bytes -= 3;				// Reset byte TX counter
+	NDACCS = 1;						// Deselect the DAC for SPI communication
+
+	////
+	//// POWER CONTROL REGISTER
+	////
+	// 3 bytes to send
+	//	23 = R/W = 0 for write
+	//	22 = Not used = 0 must be zero
+	//	21-19 = Reg2-Reg0 = 010
+	//	18-16 = A2-A0 = unused?, = 000 (Table 26, p. 26)
+	//	15-11 = Don't care
+	//	10-07 = Overcurrent alert (read only) for DACs A-D, respectively
+	//	06 = reserved bit, 0
+	//	05 = thermal shutdown alert (read only)
+	//	04 = reserved bit, 0
+	//	03-00 = power up for DACs D-A, respectively. 1 for normal operating
+	//			mode. 0 for power-down mode.  MCU sets to 0 if clamp disabled
+	//			and overcurrent detected.
+	// DAC A: send 0001 0000 0000 0000 0000 1000
+	NDACCS = 0;						// Select the DAC for SPI communication
+	SPI0DAT = 0x10;					// 0x10 = 0001 0000
+	while(SPI_DAC_Bytes != 1) {}	// wait for SPI to finish sending byte
+	SPI0DAT = 0x00;					// 0x00 = 0000 0000
+	while(SPI_DAC_Bytes != 2) {}	// wait for SPI to finish sending byte
+	SPI0DAT = 0x01;					// 0x0F = 0000 0001
+	while(SPI_DAC_Bytes != 3) {}	// wait for SPI to finish sending byte
+	SPI_DAC_Bytes -= 3;				// Reset byte TX counter
+	NDACCS = 1;						// Deselect the DAC for SPI communication
+
+	Writing_to_DAC = 0;
+
+}
+//-----------------------------------------------------------------------------
+// ADC_Init
+//-----------------------------------------------------------------------------
+//
+// Return Value: none
+// Parameters:   none
+//
+// Initialize ADC.  Must reset the SPI timing, clock polarization, and clock
+// phase.
+//
+//-----------------------------------------------------------------------------
+void ADC_Init (void)
+{
+	Writing_to_ADC = 1;
+
+	////
+	//// Set SPI configuration
+	////
+
+	// SPI configuration register: SPI0CFG
+	//  7 SPIBSY	R
+	//  6 MSTEN		R/W
+	//  5 CKPHA		R/W
+	//  4 CKPOL		R/W
+	//  3 SLVSEL	R
+	//  2 NSSIN		R
+	//  1 SRMT		R
+	//  0 RXBMT		R
+	SPI0CFG = 0x40;				// 0x60 = 0100 0000
+
+	// SPI clock rate register: SPI0CKR
+	//  7 SCR7		R/W
+	//  ...
+	//  0 SCR0		R/W
+	// The SPI clock is a divided version of SYSCLK = 24 MHz:
+	//                SYSCLK
+	//  f_SCK = ------------------
+	//           2 x (SPI0CKR + 1)
+	// So f_SCK = 12 MHz (for the DAC and RAM) is SPI0CKR = 0x00
+	// and f_SCK = 2 MHz (for the ADC) is SPI0CKR = 0x05
+	SPI0CKR = 0x05;				// 0x00 = 0000 0101
+
+	////
+	//// Write configuration to ADC
+	////
+
+	// 2 bytes to send
+	//	15 = EN1 = 1 to write data
+	//	14 = EN2 = 0 to write data
+	//	13 = SPD = 1 for 1 kHz conversion rate (0 would be for 250 Hz)
+	//	12 = SLP = 0 for NAP, SLEEP disabled (12 ms to wake from SLEEP)
+	//	11-00 = Don't care
+	// ADC: send 1010 0000 0000 0000
+	NADCCS = 0;						// Select the DAC for SPI communication
+	SPI0DAT = 0xA0;					// 0xA0 = 1010 0000
+	while(SPI_DAC_Bytes != 1) {}	// wait for SPI to finish sending byte
+	SPI0DAT = 0x00;					// 0x00 = 0000 0000
+	while(SPI_DAC_Bytes != 2) {}	// wait for SPI to finish sending byte
+	NADCCS = 1;						// Deselect the DAC for SPI communication
+
+	Writing_to_ADC = 0;
+}
+
+void RAM_Write ()
+// Write the latest ADC data to the next spot in RAM.  Use a simple FIFO.
+{
+	// Configure the SPI peripheral
+	SPI0CFG = 0x40;				// 0x60 = 0100 0000
+	SPI0CKR = 0x00;				// 0x00 = 0000 0000
+
+	// Select the RAM for SPI communication
+	Writing_to_RAM = 1;
+
+	////
+	//// STORE MSB OF ADC DATA
+	////
+	// 4 bytes to send
+	//	Write instruction = 0x02
+	//	Address, upper byte (MSb is don't care -- 15 bit address)
+	//	Address, lower byte
+	//	Data to store, high byte
+	NRAMCS = 0;
+	SPI_RAM_Bytes = 0;
+	// Write instruction
+	SPI0DAT = 0x02;					// 0x02 = 0000 0010
+	while(SPI_RAM_Bytes != 1) {}	// wait for SPI to finish sending byte
+	// MSB of address
+	SPI0DAT = RAM_to_ptr_high;		// MSB of address
+	while(SPI_RAM_Bytes != 2) {}	// wait for SPI to finish sending byte
+	// LSB of address
+	SPI0DAT = RAM_to_ptr_low;		// LSB of address
+	while(SPI_RAM_Bytes != 3) {}	// wait for SPI to finish sending byte
+	// Data to store
+	SPI0DAT = latest_ADC_HighByte;
+	while(SPI_RAM_Bytes != 4) {}	// wait for SPI to finish sending byte
+	NRAMCS = 1;
+	SPI_RAM_Bytes = 0;
+
+	// Increment the RAM To Pointer
+	if (RAM_to_ptr_low == 0xFF)
+	{
+		RAM_to_ptr_high++;
+		RAM_to_ptr_low = 0;
+	}
+	else
+	{
+		RAM_to_ptr_low++;
+	}
+
+	////
+	//// STORE LSB OF ADC DATA
+	////
+	// 4 bytes to send
+	//	Write instruction = 0x02
+	//	Address, upper byte (MSb is don't care -- 15 bit address)
+	//	Address, lower byte
+	//	Data to store, low byte
+	NRAMCS = 0;
+	SPI_RAM_Bytes = 0;
+	// Write instruction
+	SPI0DAT = 0x02;					// 0x02 = 0000 0010
+	while(SPI_RAM_Bytes != 1) {}	// wait for SPI to finish sending byte
+	// MSB of address
+	SPI0DAT = 0x00;					// MSB of address
+	while(SPI_RAM_Bytes != 2) {}	// wait for SPI to finish sending byte
+	// LSB of address
+	SPI0DAT = 0x00;					// LSB of address
+	while(SPI_RAM_Bytes != 3) {}	// wait for SPI to finish sending byte
+	// Data to store
+	SPI0DAT = latest_ADC_LowByte;
+	while(SPI_RAM_Bytes != 4) {}	// wait for SPI to finish sending byte
+	NRAMCS = 1;
+	SPI_RAM_Bytes = 0;
+
+	// Increment the RAM To Pointer
+	if (RAM_to_ptr_low == 0xFF)
+	{
+		RAM_to_ptr_high++;
+		RAM_to_ptr_low = 0;
+	}
+	else
+	{
+		RAM_to_ptr_low++;
+	}
+
+	// Deselect RAM for SPI communication
+	Writing_to_RAM = 0;
+}
+
+//-----------------------------------------------------------------------------
+// Interrupt Service Routines
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+// SPI_ISR
+//-----------------------------------------------------------------------------
+//
+// This routine...
+//
+//-----------------------------------------------------------------------------
+INTERRUPT(SPI_ISR, INTERRUPT_SPI0)
+{
+	int RXbyte;		// received byte
+	// Interrupt flag, 4 possibilities (p. 199)
+	//	0x80 = TX complete, receive byte ready to readk
+	//	0x40 = write collision, when SPI0DAT is written prior to last TX
+	//	0x20 = mode fault, NSS is pulled low during multi-master mode
+	//	0x10 = RX overrun, received a byte before last one was read (slave mode)
+
+	// Determine what caused the interrupt
+	if ((SPI0CN & 0x80) == 0x80)		// TX complete, byte ready to read
+	{
+		SPIF = 0;			// clear interrupt flag
+		RXbyte = SPI0DAT;	// This could be a byte from the DAC, ADC, or RAM.
+		if (Writing_to_ADC > 0)			// ADC
+		{
+			SPI_ADC_Bytes++;			// Do not zero in this ISR
+			if (SPI_ADC_Bytes == 0)
+			{
+				latest_ADC_HighByte = RXbyte;
+			}
+			else
+			{
+				latest_ADC_LowByte = RXbyte;
+				// Write data to RAM
+				Writing_to_RAM = 1;		// Writing to RAM, not ADC temporarily
+				Writing_to_ADC = 0;
+				// call RAM write function here...
+				Writing_to_ADC = 1;		// Change back to writing to ADC
+				Writing_to_RAM = 0;
+			}
+		}
+		else if (Writing_to_DAC > 0)	// DAC
+		{
+			SPI_DAC_Bytes++;			// Do not zero in this ISR
+		}
+		else if (Writing_to_RAM > 0)	// RAM
+		{
+			SPI_RAM_Bytes++;			// Do not zero in this ISR
+		}
+		else							// ERROR
+		{
+			ERRORPIN = 1;
+		}
+	}
+	if ((SPI0CN & 0x40) == 0x40)	// write collision
+	{
+		WCOL = 0;		// clear interrupt flag
+	}
+	if ((SPI0CN & 0x20) == 0x20)	// mode fault
+	{
+		MODF = 0;		// clear interrupt flag
+	}
+	if ((SPI0CN & 0x10) == 0x10)	// RX overrun
+	{
+		RXOVRN = 0;		// clear interrupt flag
+	}
+}
+INTERRUPT(Timer1_ISR, INTERRUPT_TIMER1)
+// ADC timer:
+// This timer is set to 2 kHz with an extra software bit to bring it to
+// 1 kHz.  This timer is used to get data from the ADC every millisecond.
+{
+	// Local variables
+	int save_Writing_to_DAC;
+	int save_Writing_to_RAM;
+	int save_NDACCS;
+	int save_NRAMCS;
+
+	TF1 = 0;						// Clear Timer2 interrupt flag
+
+	if (ADC_settled == 0)			// if not settled, still waiting 12 ms
+	{
+		ADC_timer++;
+		if (ADC_timer >= 12)
+		{
+			ADC_settled = 1;
+		}
+	}
+	else
+	{
+		if (ADC_timer_MSB < 1)		// Timer needs to execute another time,
+		{							// this halves the frequency to 1 kHz.
+			ADC_timer_MSB++;
+		}
+		else						// ADC value may be read
+		{
+			////
+			//// Must communicate via SPI without interrupts because
+			//// this interrupt is the highest priority.  Use polling.
+			////
+			
+			// Disable SPI interrupts, SFR IE, bit 6
+			ESPI0 = 0;
+			
+			// Save the SPI configuration state
+			save_Writing_to_DAC = Writing_to_DAC;
+			save_Writing_to_RAM = Writing_to_RAM;
+			save_NDACCS = NDACCS;
+			save_NRAMCS = NRAMCS;
+			
+			// Clear SPI configuration
+			Writing_to_DAC = 0;
+			Writing_to_RAM = 0;
+			NDACCS = 1;
+			NRAMCS = 1;
+			
+			// Use SPI in a polled fashion
+			NADCCS = 0;						// Select ADC for SPI comm
+			Writing_to_ADC = 1;
+			// Set up SPI peripheral for comm with ADC
+			SPI0CFG = 0x40;					// 0x60 = 0100 0000
+			SPI0CKR = 0x05;					// 0x00 = 0000 0101
+			// Send and receive data
+			SPI0DAT = 0x0;					// Write all zeros to get data
+			while(!SPIF) {}					// Poll for SPI to finish sending byte
+			latest_ADC_LowByte = SPI0DAT;	// Read SPI data register
+			// Clear SPI interrupt
+			SPIF = 0;
+			SPI0DAT = 0x00;					// 0x00 = 0000 0000
+			while(!SPIF) {}					// Poll for SPI to finish sending byte
+			latest_ADC_HighByte = SPI0DAT;	// Read SPI data register
+			// Clear SPI interrupt
+			SPIF = 0;
+			NADCCS = 1;						// Deselect ADC for SPI comm
+			Writing_to_ADC = 0;
+			
+			// Reinstate the saved SPI configuration
+			Writing_to_DAC = save_Writing_to_DAC;
+			Writing_to_RAM = save_Writing_to_RAM;
+			NDACCS = save_NDACCS;
+			NRAMCS = save_NRAMCS;
+
+			// Enable SPI interrupts, SFR IE, bit 6
+			ESPI0 = 1;
+
+			// Set up the write to RAM.  Disable USB interrupts to make sure
+			// this data gets written before it gets overwritten.
+			Write_to_RAM = 1;
+			EIE1 &= 0xFD;					// 0xFD = 1111 1101
+
+			// Reset the MSB of this timer (the bit implemented in software)
+			ADC_timer_MSB = 0;				// Reset SW timer most significant bit
+		}
+	}
+
+	// Timer frequency test, period of 1 second, toggles at 2 Hz.
+//	loop_cnt++;
+//	if (loop_cnt == 1000)
+//	{
+//		ERRORPIN = !ERRORPIN;
+//		loop_cnt = 0;
+//	}
+
+}
+INTERRUPT(Timer2_ISR, INTERRUPT_TIMER2)
+{
+	TF2H = 0;                           // Clear Timer2 interrupt flag
+//	loop_cnt++;
+	Motor1Step = !Motor1Step;			// Toggle pin so motor 1 steps ever other
+										// time this interrupt is called
+	Motor2Step = !Motor2Step;			// Toggle pin so motor 1 steps ever other
+										// time this interrupt is called
+//	if (loop_cnt > 60)
+//	{
+//		Motor1Dir = !Motor1Dir;			// Switch Motor 1 directions
+//		Motor2Dir = !Motor2Dir;			// Switch Motor 2 directions
+//		loop_cnt = 0;
+//	}
+}
+//-----------------------------------------------------------------------------
+// End Of File
+//-----------------------------------------------------------------------------

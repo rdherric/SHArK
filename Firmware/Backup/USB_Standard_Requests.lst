@@ -1,0 +1,1558 @@
+                              1 ;--------------------------------------------------------
+                              2 ; File Created by SDCC : free open source ANSI-C Compiler
+                              3 ; Version 2.9.0 #5416 (Mar 22 2009) (MINGW32)
+                              4 ; This file was generated Sun Sep 12 11:13:34 2010
+                              5 ;--------------------------------------------------------
+                              6 	.module USB_Standard_Requests
+                              7 	.optsdcc -mmcs51 --model-small
+                              8 	
+                              9 ;--------------------------------------------------------
+                             10 ; Public variables in this module
+                             11 ;--------------------------------------------------------
+                             12 	.globl _bC2D
+                             13 	.globl _bC2CK
+                             14 	.globl _bVBUS
+                             15 	.globl _bRegIn
+                             16 	.globl _bVDD
+                             17 	.globl _bDn1
+                             18 	.globl _bDp1
+                             19 	.globl _bGND
+                             20 	.globl _bPos
+                             21 	.globl _bNotADCCs
+                             22 	.globl _bNC3
+                             23 	.globl _bOutputEnable
+                             24 	.globl _bRedLED
+                             25 	.globl _bGreenLED
+                             26 	.globl _bNotRAMCS
+                             27 	.globl _bNotRAMHold
+                             28 	.globl _bIn_TTL
+                             29 	.globl _bOut_TTL
+                             30 	.globl _bLaser
+                             31 	.globl _bNC0
+                             32 	.globl _bNotDACCs
+                             33 	.globl _bNC1
+                             34 	.globl _bNC2
+                             35 	.globl _bCal
+                             36 	.globl _bSck
+                             37 	.globl _bMiso
+                             38 	.globl _bMosi
+                             39 	.globl _bMtr2Dir
+                             40 	.globl _bMtr2Step
+                             41 	.globl _bMtrDrvrEn
+                             42 	.globl _bMtr1Dir
+                             43 	.globl _bMtr1Step
+                             44 	.globl _SPIEN
+                             45 	.globl _TXBMT
+                             46 	.globl _NSSMD0
+                             47 	.globl _NSSMD1
+                             48 	.globl _RXOVRN
+                             49 	.globl _MODF
+                             50 	.globl _WCOL
+                             51 	.globl _SPIF
+                             52 	.globl _AD0CM0
+                             53 	.globl _AD0CM1
+                             54 	.globl _AD0CM2
+                             55 	.globl _AD0WINT
+                             56 	.globl _AD0BUSY
+                             57 	.globl _AD0INT
+                             58 	.globl _AD0TM
+                             59 	.globl _AD0EN
+                             60 	.globl _CCF0
+                             61 	.globl _CCF1
+                             62 	.globl _CCF2
+                             63 	.globl _CCF3
+                             64 	.globl _CCF4
+                             65 	.globl _CR
+                             66 	.globl _CF
+                             67 	.globl _P
+                             68 	.globl _F1
+                             69 	.globl _OV
+                             70 	.globl _RS0
+                             71 	.globl _RS1
+                             72 	.globl _F0
+                             73 	.globl _AC
+                             74 	.globl _CY
+                             75 	.globl _T2XCLK
+                             76 	.globl _TR2
+                             77 	.globl _T2SPLIT
+                             78 	.globl _T2SOF
+                             79 	.globl _TF2LEN
+                             80 	.globl _TF2L
+                             81 	.globl _TF2H
+                             82 	.globl _SI
+                             83 	.globl _ACK
+                             84 	.globl _ARBLOST
+                             85 	.globl _ACKRQ
+                             86 	.globl _STO
+                             87 	.globl _STA
+                             88 	.globl _TXMODE
+                             89 	.globl _MASTER
+                             90 	.globl _PX0
+                             91 	.globl _PT0
+                             92 	.globl _PX1
+                             93 	.globl _PT1
+                             94 	.globl _PS0
+                             95 	.globl _PT2
+                             96 	.globl _PSPI0
+                             97 	.globl _EX0
+                             98 	.globl _ET0
+                             99 	.globl _EX1
+                            100 	.globl _ET1
+                            101 	.globl _ES0
+                            102 	.globl _ET2
+                            103 	.globl _ESPI0
+                            104 	.globl _EA
+                            105 	.globl _RI0
+                            106 	.globl _TI0
+                            107 	.globl _RB80
+                            108 	.globl _TB80
+                            109 	.globl _REN0
+                            110 	.globl _MCE0
+                            111 	.globl _S0MODE
+                            112 	.globl _IT0
+                            113 	.globl _IE0
+                            114 	.globl _IT1
+                            115 	.globl _IE1
+                            116 	.globl _TR0
+                            117 	.globl _TF0
+                            118 	.globl _TR1
+                            119 	.globl _TF1
+                            120 	.globl _PCA0CP4
+                            121 	.globl _PCA0CP0
+                            122 	.globl _PCA0
+                            123 	.globl _PCA0CP3
+                            124 	.globl _PCA0CP2
+                            125 	.globl _PCA0CP1
+                            126 	.globl _TMR2
+                            127 	.globl _TMR2RL
+                            128 	.globl _ADC0LT
+                            129 	.globl _ADC0GT
+                            130 	.globl _ADC0
+                            131 	.globl _TMR3
+                            132 	.globl _TMR3RL
+                            133 	.globl _DP
+                            134 	.globl _VDM0CN
+                            135 	.globl _PCA0CPH4
+                            136 	.globl _PCA0CPL4
+                            137 	.globl _PCA0CPH0
+                            138 	.globl _PCA0CPL0
+                            139 	.globl _PCA0H
+                            140 	.globl _PCA0L
+                            141 	.globl _SPI0CN
+                            142 	.globl _EIP2
+                            143 	.globl _EIP1
+                            144 	.globl _P3MDIN
+                            145 	.globl _P2MDIN
+                            146 	.globl _P1MDIN
+                            147 	.globl _P0MDIN
+                            148 	.globl _B
+                            149 	.globl _RSTSRC
+                            150 	.globl _PCA0CPH3
+                            151 	.globl _PCA0CPL3
+                            152 	.globl _PCA0CPH2
+                            153 	.globl _PCA0CPL2
+                            154 	.globl _PCA0CPH1
+                            155 	.globl _PCA0CPL1
+                            156 	.globl _ADC0CN
+                            157 	.globl _EIE2
+                            158 	.globl _EIE1
+                            159 	.globl _IT01CF
+                            160 	.globl _XBR1
+                            161 	.globl _XBR0
+                            162 	.globl _ACC
+                            163 	.globl _PCA0CPM4
+                            164 	.globl _PCA0CPM3
+                            165 	.globl _PCA0CPM2
+                            166 	.globl _PCA0CPM1
+                            167 	.globl _PCA0CPM0
+                            168 	.globl _PCA0MD
+                            169 	.globl _PCA0CN
+                            170 	.globl _USB0XCN
+                            171 	.globl _P2SKIP
+                            172 	.globl _P1SKIP
+                            173 	.globl _P0SKIP
+                            174 	.globl _REF0CN
+                            175 	.globl _PSW
+                            176 	.globl _TMR2H
+                            177 	.globl _TMR2L
+                            178 	.globl _TMR2RLH
+                            179 	.globl _TMR2RLL
+                            180 	.globl _REG0CN
+                            181 	.globl _TMR2CN
+                            182 	.globl _ADC0LTH
+                            183 	.globl _ADC0LTL
+                            184 	.globl _ADC0GTH
+                            185 	.globl _ADC0GTL
+                            186 	.globl _SMB0DAT
+                            187 	.globl _SMB0CF
+                            188 	.globl _SMB0CN
+                            189 	.globl _ADC0H
+                            190 	.globl _ADC0L
+                            191 	.globl _ADC0CF
+                            192 	.globl _AMX0P
+                            193 	.globl _AMX0N
+                            194 	.globl _CLKMUL
+                            195 	.globl _IP
+                            196 	.globl _FLKEY
+                            197 	.globl _FLSCL
+                            198 	.globl _OSCICL
+                            199 	.globl _OSCICN
+                            200 	.globl _OSCXCN
+                            201 	.globl _P3
+                            202 	.globl _EMI0CN
+                            203 	.globl _CLKSEL
+                            204 	.globl _IE
+                            205 	.globl _P3MDOUT
+                            206 	.globl _P2MDOUT
+                            207 	.globl _P1MDOUT
+                            208 	.globl _P0MDOUT
+                            209 	.globl _SPI0DAT
+                            210 	.globl _SPIDAT
+                            211 	.globl _SPI0CKR
+                            212 	.globl _SPICKR
+                            213 	.globl _SPI0CFG
+                            214 	.globl _SPICFG
+                            215 	.globl _P2
+                            216 	.globl _CPT0MX
+                            217 	.globl _CPT1MX
+                            218 	.globl _CPT0MD
+                            219 	.globl _CPT1MD
+                            220 	.globl _CPT0CN
+                            221 	.globl _CPT1CN
+                            222 	.globl _SBUF0
+                            223 	.globl _SCON0
+                            224 	.globl _USB0DAT
+                            225 	.globl _USB0ADR
+                            226 	.globl _TMR3H
+                            227 	.globl _TMR3L
+                            228 	.globl _TMR3RLH
+                            229 	.globl _TMR3RLL
+                            230 	.globl _TMR3CN
+                            231 	.globl _P1
+                            232 	.globl _PSCTL
+                            233 	.globl _CKCON
+                            234 	.globl _TH1
+                            235 	.globl _TH0
+                            236 	.globl _TL1
+                            237 	.globl _TL0
+                            238 	.globl _TMOD
+                            239 	.globl _TCON
+                            240 	.globl _PCON
+                            241 	.globl _DPH
+                            242 	.globl _DPL
+                            243 	.globl _SP
+                            244 	.globl _P0
+                            245 	.globl _pIfStatus
+                            246 	.globl _uNumBytes
+                            247 	.globl _bEpState
+                            248 	.globl _SetAddressRequest
+                            249 	.globl _SetFeatureRequest
+                            250 	.globl _ClearFeatureRequest
+                            251 	.globl _SetConfigurationRequest
+                            252 	.globl _SetInterfaceRequest
+                            253 	.globl _GetStatusRequest
+                            254 	.globl _GetDescriptorRequest
+                            255 	.globl _GetConfigurationRequest
+                            256 	.globl _GetInterfaceRequest
+                            257 ;--------------------------------------------------------
+                            258 ; special function registers
+                            259 ;--------------------------------------------------------
+                            260 	.area RSEG    (DATA)
+                    0080    261 G$P0$0$0 == 0x0080
+                    0080    262 _P0	=	0x0080
+                    0081    263 G$SP$0$0 == 0x0081
+                    0081    264 _SP	=	0x0081
+                    0082    265 G$DPL$0$0 == 0x0082
+                    0082    266 _DPL	=	0x0082
+                    0083    267 G$DPH$0$0 == 0x0083
+                    0083    268 _DPH	=	0x0083
+                    0087    269 G$PCON$0$0 == 0x0087
+                    0087    270 _PCON	=	0x0087
+                    0088    271 G$TCON$0$0 == 0x0088
+                    0088    272 _TCON	=	0x0088
+                    0089    273 G$TMOD$0$0 == 0x0089
+                    0089    274 _TMOD	=	0x0089
+                    008A    275 G$TL0$0$0 == 0x008a
+                    008A    276 _TL0	=	0x008a
+                    008B    277 G$TL1$0$0 == 0x008b
+                    008B    278 _TL1	=	0x008b
+                    008C    279 G$TH0$0$0 == 0x008c
+                    008C    280 _TH0	=	0x008c
+                    008D    281 G$TH1$0$0 == 0x008d
+                    008D    282 _TH1	=	0x008d
+                    008E    283 G$CKCON$0$0 == 0x008e
+                    008E    284 _CKCON	=	0x008e
+                    008F    285 G$PSCTL$0$0 == 0x008f
+                    008F    286 _PSCTL	=	0x008f
+                    0090    287 G$P1$0$0 == 0x0090
+                    0090    288 _P1	=	0x0090
+                    0091    289 G$TMR3CN$0$0 == 0x0091
+                    0091    290 _TMR3CN	=	0x0091
+                    0092    291 G$TMR3RLL$0$0 == 0x0092
+                    0092    292 _TMR3RLL	=	0x0092
+                    0093    293 G$TMR3RLH$0$0 == 0x0093
+                    0093    294 _TMR3RLH	=	0x0093
+                    0094    295 G$TMR3L$0$0 == 0x0094
+                    0094    296 _TMR3L	=	0x0094
+                    0095    297 G$TMR3H$0$0 == 0x0095
+                    0095    298 _TMR3H	=	0x0095
+                    0096    299 G$USB0ADR$0$0 == 0x0096
+                    0096    300 _USB0ADR	=	0x0096
+                    0097    301 G$USB0DAT$0$0 == 0x0097
+                    0097    302 _USB0DAT	=	0x0097
+                    0098    303 G$SCON0$0$0 == 0x0098
+                    0098    304 _SCON0	=	0x0098
+                    0099    305 G$SBUF0$0$0 == 0x0099
+                    0099    306 _SBUF0	=	0x0099
+                    009A    307 G$CPT1CN$0$0 == 0x009a
+                    009A    308 _CPT1CN	=	0x009a
+                    009B    309 G$CPT0CN$0$0 == 0x009b
+                    009B    310 _CPT0CN	=	0x009b
+                    009C    311 G$CPT1MD$0$0 == 0x009c
+                    009C    312 _CPT1MD	=	0x009c
+                    009D    313 G$CPT0MD$0$0 == 0x009d
+                    009D    314 _CPT0MD	=	0x009d
+                    009E    315 G$CPT1MX$0$0 == 0x009e
+                    009E    316 _CPT1MX	=	0x009e
+                    009F    317 G$CPT0MX$0$0 == 0x009f
+                    009F    318 _CPT0MX	=	0x009f
+                    00A0    319 G$P2$0$0 == 0x00a0
+                    00A0    320 _P2	=	0x00a0
+                    00A1    321 G$SPICFG$0$0 == 0x00a1
+                    00A1    322 _SPICFG	=	0x00a1
+                    00A1    323 G$SPI0CFG$0$0 == 0x00a1
+                    00A1    324 _SPI0CFG	=	0x00a1
+                    00A2    325 G$SPICKR$0$0 == 0x00a2
+                    00A2    326 _SPICKR	=	0x00a2
+                    00A2    327 G$SPI0CKR$0$0 == 0x00a2
+                    00A2    328 _SPI0CKR	=	0x00a2
+                    00A3    329 G$SPIDAT$0$0 == 0x00a3
+                    00A3    330 _SPIDAT	=	0x00a3
+                    00A3    331 G$SPI0DAT$0$0 == 0x00a3
+                    00A3    332 _SPI0DAT	=	0x00a3
+                    00A4    333 G$P0MDOUT$0$0 == 0x00a4
+                    00A4    334 _P0MDOUT	=	0x00a4
+                    00A5    335 G$P1MDOUT$0$0 == 0x00a5
+                    00A5    336 _P1MDOUT	=	0x00a5
+                    00A6    337 G$P2MDOUT$0$0 == 0x00a6
+                    00A6    338 _P2MDOUT	=	0x00a6
+                    00A7    339 G$P3MDOUT$0$0 == 0x00a7
+                    00A7    340 _P3MDOUT	=	0x00a7
+                    00A8    341 G$IE$0$0 == 0x00a8
+                    00A8    342 _IE	=	0x00a8
+                    00A9    343 G$CLKSEL$0$0 == 0x00a9
+                    00A9    344 _CLKSEL	=	0x00a9
+                    00AA    345 G$EMI0CN$0$0 == 0x00aa
+                    00AA    346 _EMI0CN	=	0x00aa
+                    00B0    347 G$P3$0$0 == 0x00b0
+                    00B0    348 _P3	=	0x00b0
+                    00B1    349 G$OSCXCN$0$0 == 0x00b1
+                    00B1    350 _OSCXCN	=	0x00b1
+                    00B2    351 G$OSCICN$0$0 == 0x00b2
+                    00B2    352 _OSCICN	=	0x00b2
+                    00B3    353 G$OSCICL$0$0 == 0x00b3
+                    00B3    354 _OSCICL	=	0x00b3
+                    00B6    355 G$FLSCL$0$0 == 0x00b6
+                    00B6    356 _FLSCL	=	0x00b6
+                    00B7    357 G$FLKEY$0$0 == 0x00b7
+                    00B7    358 _FLKEY	=	0x00b7
+                    00B8    359 G$IP$0$0 == 0x00b8
+                    00B8    360 _IP	=	0x00b8
+                    00B9    361 G$CLKMUL$0$0 == 0x00b9
+                    00B9    362 _CLKMUL	=	0x00b9
+                    00BA    363 G$AMX0N$0$0 == 0x00ba
+                    00BA    364 _AMX0N	=	0x00ba
+                    00BB    365 G$AMX0P$0$0 == 0x00bb
+                    00BB    366 _AMX0P	=	0x00bb
+                    00BC    367 G$ADC0CF$0$0 == 0x00bc
+                    00BC    368 _ADC0CF	=	0x00bc
+                    00BD    369 G$ADC0L$0$0 == 0x00bd
+                    00BD    370 _ADC0L	=	0x00bd
+                    00BE    371 G$ADC0H$0$0 == 0x00be
+                    00BE    372 _ADC0H	=	0x00be
+                    00C0    373 G$SMB0CN$0$0 == 0x00c0
+                    00C0    374 _SMB0CN	=	0x00c0
+                    00C1    375 G$SMB0CF$0$0 == 0x00c1
+                    00C1    376 _SMB0CF	=	0x00c1
+                    00C2    377 G$SMB0DAT$0$0 == 0x00c2
+                    00C2    378 _SMB0DAT	=	0x00c2
+                    00C3    379 G$ADC0GTL$0$0 == 0x00c3
+                    00C3    380 _ADC0GTL	=	0x00c3
+                    00C4    381 G$ADC0GTH$0$0 == 0x00c4
+                    00C4    382 _ADC0GTH	=	0x00c4
+                    00C5    383 G$ADC0LTL$0$0 == 0x00c5
+                    00C5    384 _ADC0LTL	=	0x00c5
+                    00C6    385 G$ADC0LTH$0$0 == 0x00c6
+                    00C6    386 _ADC0LTH	=	0x00c6
+                    00C8    387 G$TMR2CN$0$0 == 0x00c8
+                    00C8    388 _TMR2CN	=	0x00c8
+                    00C9    389 G$REG0CN$0$0 == 0x00c9
+                    00C9    390 _REG0CN	=	0x00c9
+                    00CA    391 G$TMR2RLL$0$0 == 0x00ca
+                    00CA    392 _TMR2RLL	=	0x00ca
+                    00CB    393 G$TMR2RLH$0$0 == 0x00cb
+                    00CB    394 _TMR2RLH	=	0x00cb
+                    00CC    395 G$TMR2L$0$0 == 0x00cc
+                    00CC    396 _TMR2L	=	0x00cc
+                    00CD    397 G$TMR2H$0$0 == 0x00cd
+                    00CD    398 _TMR2H	=	0x00cd
+                    00D0    399 G$PSW$0$0 == 0x00d0
+                    00D0    400 _PSW	=	0x00d0
+                    00D1    401 G$REF0CN$0$0 == 0x00d1
+                    00D1    402 _REF0CN	=	0x00d1
+                    00D4    403 G$P0SKIP$0$0 == 0x00d4
+                    00D4    404 _P0SKIP	=	0x00d4
+                    00D5    405 G$P1SKIP$0$0 == 0x00d5
+                    00D5    406 _P1SKIP	=	0x00d5
+                    00D6    407 G$P2SKIP$0$0 == 0x00d6
+                    00D6    408 _P2SKIP	=	0x00d6
+                    00D7    409 G$USB0XCN$0$0 == 0x00d7
+                    00D7    410 _USB0XCN	=	0x00d7
+                    00D8    411 G$PCA0CN$0$0 == 0x00d8
+                    00D8    412 _PCA0CN	=	0x00d8
+                    00D9    413 G$PCA0MD$0$0 == 0x00d9
+                    00D9    414 _PCA0MD	=	0x00d9
+                    00DA    415 G$PCA0CPM0$0$0 == 0x00da
+                    00DA    416 _PCA0CPM0	=	0x00da
+                    00DB    417 G$PCA0CPM1$0$0 == 0x00db
+                    00DB    418 _PCA0CPM1	=	0x00db
+                    00DC    419 G$PCA0CPM2$0$0 == 0x00dc
+                    00DC    420 _PCA0CPM2	=	0x00dc
+                    00DD    421 G$PCA0CPM3$0$0 == 0x00dd
+                    00DD    422 _PCA0CPM3	=	0x00dd
+                    00DE    423 G$PCA0CPM4$0$0 == 0x00de
+                    00DE    424 _PCA0CPM4	=	0x00de
+                    00E0    425 G$ACC$0$0 == 0x00e0
+                    00E0    426 _ACC	=	0x00e0
+                    00E1    427 G$XBR0$0$0 == 0x00e1
+                    00E1    428 _XBR0	=	0x00e1
+                    00E2    429 G$XBR1$0$0 == 0x00e2
+                    00E2    430 _XBR1	=	0x00e2
+                    00E4    431 G$IT01CF$0$0 == 0x00e4
+                    00E4    432 _IT01CF	=	0x00e4
+                    00E6    433 G$EIE1$0$0 == 0x00e6
+                    00E6    434 _EIE1	=	0x00e6
+                    00E7    435 G$EIE2$0$0 == 0x00e7
+                    00E7    436 _EIE2	=	0x00e7
+                    00E8    437 G$ADC0CN$0$0 == 0x00e8
+                    00E8    438 _ADC0CN	=	0x00e8
+                    00E9    439 G$PCA0CPL1$0$0 == 0x00e9
+                    00E9    440 _PCA0CPL1	=	0x00e9
+                    00EA    441 G$PCA0CPH1$0$0 == 0x00ea
+                    00EA    442 _PCA0CPH1	=	0x00ea
+                    00EB    443 G$PCA0CPL2$0$0 == 0x00eb
+                    00EB    444 _PCA0CPL2	=	0x00eb
+                    00EC    445 G$PCA0CPH2$0$0 == 0x00ec
+                    00EC    446 _PCA0CPH2	=	0x00ec
+                    00ED    447 G$PCA0CPL3$0$0 == 0x00ed
+                    00ED    448 _PCA0CPL3	=	0x00ed
+                    00EE    449 G$PCA0CPH3$0$0 == 0x00ee
+                    00EE    450 _PCA0CPH3	=	0x00ee
+                    00EF    451 G$RSTSRC$0$0 == 0x00ef
+                    00EF    452 _RSTSRC	=	0x00ef
+                    00F0    453 G$B$0$0 == 0x00f0
+                    00F0    454 _B	=	0x00f0
+                    00F1    455 G$P0MDIN$0$0 == 0x00f1
+                    00F1    456 _P0MDIN	=	0x00f1
+                    00F2    457 G$P1MDIN$0$0 == 0x00f2
+                    00F2    458 _P1MDIN	=	0x00f2
+                    00F3    459 G$P2MDIN$0$0 == 0x00f3
+                    00F3    460 _P2MDIN	=	0x00f3
+                    00F4    461 G$P3MDIN$0$0 == 0x00f4
+                    00F4    462 _P3MDIN	=	0x00f4
+                    00F6    463 G$EIP1$0$0 == 0x00f6
+                    00F6    464 _EIP1	=	0x00f6
+                    00F7    465 G$EIP2$0$0 == 0x00f7
+                    00F7    466 _EIP2	=	0x00f7
+                    00F8    467 G$SPI0CN$0$0 == 0x00f8
+                    00F8    468 _SPI0CN	=	0x00f8
+                    00F9    469 G$PCA0L$0$0 == 0x00f9
+                    00F9    470 _PCA0L	=	0x00f9
+                    00FA    471 G$PCA0H$0$0 == 0x00fa
+                    00FA    472 _PCA0H	=	0x00fa
+                    00FB    473 G$PCA0CPL0$0$0 == 0x00fb
+                    00FB    474 _PCA0CPL0	=	0x00fb
+                    00FC    475 G$PCA0CPH0$0$0 == 0x00fc
+                    00FC    476 _PCA0CPH0	=	0x00fc
+                    00FD    477 G$PCA0CPL4$0$0 == 0x00fd
+                    00FD    478 _PCA0CPL4	=	0x00fd
+                    00FE    479 G$PCA0CPH4$0$0 == 0x00fe
+                    00FE    480 _PCA0CPH4	=	0x00fe
+                    00FF    481 G$VDM0CN$0$0 == 0x00ff
+                    00FF    482 _VDM0CN	=	0x00ff
+                    8382    483 G$DP$0$0 == 0x8382
+                    8382    484 _DP	=	0x8382
+                    9392    485 G$TMR3RL$0$0 == 0x9392
+                    9392    486 _TMR3RL	=	0x9392
+                    9594    487 G$TMR3$0$0 == 0x9594
+                    9594    488 _TMR3	=	0x9594
+                    BEBD    489 G$ADC0$0$0 == 0xbebd
+                    BEBD    490 _ADC0	=	0xbebd
+                    C4C3    491 G$ADC0GT$0$0 == 0xc4c3
+                    C4C3    492 _ADC0GT	=	0xc4c3
+                    C6C5    493 G$ADC0LT$0$0 == 0xc6c5
+                    C6C5    494 _ADC0LT	=	0xc6c5
+                    CBCA    495 G$TMR2RL$0$0 == 0xcbca
+                    CBCA    496 _TMR2RL	=	0xcbca
+                    CDCC    497 G$TMR2$0$0 == 0xcdcc
+                    CDCC    498 _TMR2	=	0xcdcc
+                    EAE9    499 G$PCA0CP1$0$0 == 0xeae9
+                    EAE9    500 _PCA0CP1	=	0xeae9
+                    ECEB    501 G$PCA0CP2$0$0 == 0xeceb
+                    ECEB    502 _PCA0CP2	=	0xeceb
+                    EEED    503 G$PCA0CP3$0$0 == 0xeeed
+                    EEED    504 _PCA0CP3	=	0xeeed
+                    FAF9    505 G$PCA0$0$0 == 0xfaf9
+                    FAF9    506 _PCA0	=	0xfaf9
+                    FCFB    507 G$PCA0CP0$0$0 == 0xfcfb
+                    FCFB    508 _PCA0CP0	=	0xfcfb
+                    FEFD    509 G$PCA0CP4$0$0 == 0xfefd
+                    FEFD    510 _PCA0CP4	=	0xfefd
+                            511 ;--------------------------------------------------------
+                            512 ; special function bits
+                            513 ;--------------------------------------------------------
+                            514 	.area RSEG    (DATA)
+                    008F    515 G$TF1$0$0 == 0x008f
+                    008F    516 _TF1	=	0x008f
+                    008E    517 G$TR1$0$0 == 0x008e
+                    008E    518 _TR1	=	0x008e
+                    008D    519 G$TF0$0$0 == 0x008d
+                    008D    520 _TF0	=	0x008d
+                    008C    521 G$TR0$0$0 == 0x008c
+                    008C    522 _TR0	=	0x008c
+                    008B    523 G$IE1$0$0 == 0x008b
+                    008B    524 _IE1	=	0x008b
+                    008A    525 G$IT1$0$0 == 0x008a
+                    008A    526 _IT1	=	0x008a
+                    0089    527 G$IE0$0$0 == 0x0089
+                    0089    528 _IE0	=	0x0089
+                    0088    529 G$IT0$0$0 == 0x0088
+                    0088    530 _IT0	=	0x0088
+                    009F    531 G$S0MODE$0$0 == 0x009f
+                    009F    532 _S0MODE	=	0x009f
+                    009D    533 G$MCE0$0$0 == 0x009d
+                    009D    534 _MCE0	=	0x009d
+                    009C    535 G$REN0$0$0 == 0x009c
+                    009C    536 _REN0	=	0x009c
+                    009B    537 G$TB80$0$0 == 0x009b
+                    009B    538 _TB80	=	0x009b
+                    009A    539 G$RB80$0$0 == 0x009a
+                    009A    540 _RB80	=	0x009a
+                    0099    541 G$TI0$0$0 == 0x0099
+                    0099    542 _TI0	=	0x0099
+                    0098    543 G$RI0$0$0 == 0x0098
+                    0098    544 _RI0	=	0x0098
+                    00AF    545 G$EA$0$0 == 0x00af
+                    00AF    546 _EA	=	0x00af
+                    00AE    547 G$ESPI0$0$0 == 0x00ae
+                    00AE    548 _ESPI0	=	0x00ae
+                    00AD    549 G$ET2$0$0 == 0x00ad
+                    00AD    550 _ET2	=	0x00ad
+                    00AC    551 G$ES0$0$0 == 0x00ac
+                    00AC    552 _ES0	=	0x00ac
+                    00AB    553 G$ET1$0$0 == 0x00ab
+                    00AB    554 _ET1	=	0x00ab
+                    00AA    555 G$EX1$0$0 == 0x00aa
+                    00AA    556 _EX1	=	0x00aa
+                    00A9    557 G$ET0$0$0 == 0x00a9
+                    00A9    558 _ET0	=	0x00a9
+                    00A8    559 G$EX0$0$0 == 0x00a8
+                    00A8    560 _EX0	=	0x00a8
+                    00BE    561 G$PSPI0$0$0 == 0x00be
+                    00BE    562 _PSPI0	=	0x00be
+                    00BD    563 G$PT2$0$0 == 0x00bd
+                    00BD    564 _PT2	=	0x00bd
+                    00BC    565 G$PS0$0$0 == 0x00bc
+                    00BC    566 _PS0	=	0x00bc
+                    00BB    567 G$PT1$0$0 == 0x00bb
+                    00BB    568 _PT1	=	0x00bb
+                    00BA    569 G$PX1$0$0 == 0x00ba
+                    00BA    570 _PX1	=	0x00ba
+                    00B9    571 G$PT0$0$0 == 0x00b9
+                    00B9    572 _PT0	=	0x00b9
+                    00B8    573 G$PX0$0$0 == 0x00b8
+                    00B8    574 _PX0	=	0x00b8
+                    00C7    575 G$MASTER$0$0 == 0x00c7
+                    00C7    576 _MASTER	=	0x00c7
+                    00C6    577 G$TXMODE$0$0 == 0x00c6
+                    00C6    578 _TXMODE	=	0x00c6
+                    00C5    579 G$STA$0$0 == 0x00c5
+                    00C5    580 _STA	=	0x00c5
+                    00C4    581 G$STO$0$0 == 0x00c4
+                    00C4    582 _STO	=	0x00c4
+                    00C3    583 G$ACKRQ$0$0 == 0x00c3
+                    00C3    584 _ACKRQ	=	0x00c3
+                    00C2    585 G$ARBLOST$0$0 == 0x00c2
+                    00C2    586 _ARBLOST	=	0x00c2
+                    00C1    587 G$ACK$0$0 == 0x00c1
+                    00C1    588 _ACK	=	0x00c1
+                    00C0    589 G$SI$0$0 == 0x00c0
+                    00C0    590 _SI	=	0x00c0
+                    00CF    591 G$TF2H$0$0 == 0x00cf
+                    00CF    592 _TF2H	=	0x00cf
+                    00CE    593 G$TF2L$0$0 == 0x00ce
+                    00CE    594 _TF2L	=	0x00ce
+                    00CD    595 G$TF2LEN$0$0 == 0x00cd
+                    00CD    596 _TF2LEN	=	0x00cd
+                    00CC    597 G$T2SOF$0$0 == 0x00cc
+                    00CC    598 _T2SOF	=	0x00cc
+                    00CB    599 G$T2SPLIT$0$0 == 0x00cb
+                    00CB    600 _T2SPLIT	=	0x00cb
+                    00CA    601 G$TR2$0$0 == 0x00ca
+                    00CA    602 _TR2	=	0x00ca
+                    00C8    603 G$T2XCLK$0$0 == 0x00c8
+                    00C8    604 _T2XCLK	=	0x00c8
+                    00D7    605 G$CY$0$0 == 0x00d7
+                    00D7    606 _CY	=	0x00d7
+                    00D6    607 G$AC$0$0 == 0x00d6
+                    00D6    608 _AC	=	0x00d6
+                    00D5    609 G$F0$0$0 == 0x00d5
+                    00D5    610 _F0	=	0x00d5
+                    00D4    611 G$RS1$0$0 == 0x00d4
+                    00D4    612 _RS1	=	0x00d4
+                    00D3    613 G$RS0$0$0 == 0x00d3
+                    00D3    614 _RS0	=	0x00d3
+                    00D2    615 G$OV$0$0 == 0x00d2
+                    00D2    616 _OV	=	0x00d2
+                    00D1    617 G$F1$0$0 == 0x00d1
+                    00D1    618 _F1	=	0x00d1
+                    00D0    619 G$P$0$0 == 0x00d0
+                    00D0    620 _P	=	0x00d0
+                    00DF    621 G$CF$0$0 == 0x00df
+                    00DF    622 _CF	=	0x00df
+                    00DE    623 G$CR$0$0 == 0x00de
+                    00DE    624 _CR	=	0x00de
+                    00DC    625 G$CCF4$0$0 == 0x00dc
+                    00DC    626 _CCF4	=	0x00dc
+                    00DB    627 G$CCF3$0$0 == 0x00db
+                    00DB    628 _CCF3	=	0x00db
+                    00DA    629 G$CCF2$0$0 == 0x00da
+                    00DA    630 _CCF2	=	0x00da
+                    00D9    631 G$CCF1$0$0 == 0x00d9
+                    00D9    632 _CCF1	=	0x00d9
+                    00D8    633 G$CCF0$0$0 == 0x00d8
+                    00D8    634 _CCF0	=	0x00d8
+                    00EF    635 G$AD0EN$0$0 == 0x00ef
+                    00EF    636 _AD0EN	=	0x00ef
+                    00EE    637 G$AD0TM$0$0 == 0x00ee
+                    00EE    638 _AD0TM	=	0x00ee
+                    00ED    639 G$AD0INT$0$0 == 0x00ed
+                    00ED    640 _AD0INT	=	0x00ed
+                    00EC    641 G$AD0BUSY$0$0 == 0x00ec
+                    00EC    642 _AD0BUSY	=	0x00ec
+                    00EB    643 G$AD0WINT$0$0 == 0x00eb
+                    00EB    644 _AD0WINT	=	0x00eb
+                    00EA    645 G$AD0CM2$0$0 == 0x00ea
+                    00EA    646 _AD0CM2	=	0x00ea
+                    00E9    647 G$AD0CM1$0$0 == 0x00e9
+                    00E9    648 _AD0CM1	=	0x00e9
+                    00E8    649 G$AD0CM0$0$0 == 0x00e8
+                    00E8    650 _AD0CM0	=	0x00e8
+                    00FF    651 G$SPIF$0$0 == 0x00ff
+                    00FF    652 _SPIF	=	0x00ff
+                    00FE    653 G$WCOL$0$0 == 0x00fe
+                    00FE    654 _WCOL	=	0x00fe
+                    00FD    655 G$MODF$0$0 == 0x00fd
+                    00FD    656 _MODF	=	0x00fd
+                    00FC    657 G$RXOVRN$0$0 == 0x00fc
+                    00FC    658 _RXOVRN	=	0x00fc
+                    00FB    659 G$NSSMD1$0$0 == 0x00fb
+                    00FB    660 _NSSMD1	=	0x00fb
+                    00FA    661 G$NSSMD0$0$0 == 0x00fa
+                    00FA    662 _NSSMD0	=	0x00fa
+                    00F9    663 G$TXBMT$0$0 == 0x00f9
+                    00F9    664 _TXBMT	=	0x00f9
+                    00F8    665 G$SPIEN$0$0 == 0x00f8
+                    00F8    666 _SPIEN	=	0x00f8
+                    0087    667 G$bMtr1Step$0$0 == 0x0087
+                    0087    668 _bMtr1Step	=	0x0087
+                    0086    669 G$bMtr1Dir$0$0 == 0x0086
+                    0086    670 _bMtr1Dir	=	0x0086
+                    0085    671 G$bMtrDrvrEn$0$0 == 0x0085
+                    0085    672 _bMtrDrvrEn	=	0x0085
+                    0084    673 G$bMtr2Step$0$0 == 0x0084
+                    0084    674 _bMtr2Step	=	0x0084
+                    0083    675 G$bMtr2Dir$0$0 == 0x0083
+                    0083    676 _bMtr2Dir	=	0x0083
+                    0082    677 G$bMosi$0$0 == 0x0082
+                    0082    678 _bMosi	=	0x0082
+                    0081    679 G$bMiso$0$0 == 0x0081
+                    0081    680 _bMiso	=	0x0081
+                    0080    681 G$bSck$0$0 == 0x0080
+                    0080    682 _bSck	=	0x0080
+                    0097    683 G$bCal$0$0 == 0x0097
+                    0097    684 _bCal	=	0x0097
+                    0096    685 G$bNC2$0$0 == 0x0096
+                    0096    686 _bNC2	=	0x0096
+                    0095    687 G$bNC1$0$0 == 0x0095
+                    0095    688 _bNC1	=	0x0095
+                    0094    689 G$bNotDACCs$0$0 == 0x0094
+                    0094    690 _bNotDACCs	=	0x0094
+                    0093    691 G$bNC0$0$0 == 0x0093
+                    0093    692 _bNC0	=	0x0093
+                    0092    693 G$bLaser$0$0 == 0x0092
+                    0092    694 _bLaser	=	0x0092
+                    0091    695 G$bOut_TTL$0$0 == 0x0091
+                    0091    696 _bOut_TTL	=	0x0091
+                    0090    697 G$bIn_TTL$0$0 == 0x0090
+                    0090    698 _bIn_TTL	=	0x0090
+                    00A7    699 G$bNotRAMHold$0$0 == 0x00a7
+                    00A7    700 _bNotRAMHold	=	0x00a7
+                    00A6    701 G$bNotRAMCS$0$0 == 0x00a6
+                    00A6    702 _bNotRAMCS	=	0x00a6
+                    00A5    703 G$bGreenLED$0$0 == 0x00a5
+                    00A5    704 _bGreenLED	=	0x00a5
+                    00A4    705 G$bRedLED$0$0 == 0x00a4
+                    00A4    706 _bRedLED	=	0x00a4
+                    00A3    707 G$bOutputEnable$0$0 == 0x00a3
+                    00A3    708 _bOutputEnable	=	0x00a3
+                    00A2    709 G$bNC3$0$0 == 0x00a2
+                    00A2    710 _bNC3	=	0x00a2
+                    00A1    711 G$bNotADCCs$0$0 == 0x00a1
+                    00A1    712 _bNotADCCs	=	0x00a1
+                    00A0    713 G$bPos$0$0 == 0x00a0
+                    00A0    714 _bPos	=	0x00a0
+                    00B7    715 G$bGND$0$0 == 0x00b7
+                    00B7    716 _bGND	=	0x00b7
+                    00B6    717 G$bDp1$0$0 == 0x00b6
+                    00B6    718 _bDp1	=	0x00b6
+                    00B5    719 G$bDn1$0$0 == 0x00b5
+                    00B5    720 _bDn1	=	0x00b5
+                    00B4    721 G$bVDD$0$0 == 0x00b4
+                    00B4    722 _bVDD	=	0x00b4
+                    00B3    723 G$bRegIn$0$0 == 0x00b3
+                    00B3    724 _bRegIn	=	0x00b3
+                    00B2    725 G$bVBUS$0$0 == 0x00b2
+                    00B2    726 _bVBUS	=	0x00b2
+                    00B1    727 G$bC2CK$0$0 == 0x00b1
+                    00B1    728 _bC2CK	=	0x00b1
+                    00B0    729 G$bC2D$0$0 == 0x00b0
+                    00B0    730 _bC2D	=	0x00b0
+                            731 ;--------------------------------------------------------
+                            732 ; overlayable register banks
+                            733 ;--------------------------------------------------------
+                            734 	.area REG_BANK_0	(REL,OVR,DATA)
+   0000                     735 	.ds 8
+                            736 ;--------------------------------------------------------
+                            737 ; internal ram data
+                            738 ;--------------------------------------------------------
+                            739 	.area DSEG    (DATA)
+                    0000    740 G$bEpState$0$0==.
+   0000                     741 _bEpState::
+   0000                     742 	.ds 1
+                    0001    743 G$uNumBytes$0$0==.
+   0001                     744 _uNumBytes::
+   0001                     745 	.ds 2
+                    0003    746 G$pIfStatus$0$0==.
+   0003                     747 _pIfStatus::
+   0003                     748 	.ds 3
+                            749 ;--------------------------------------------------------
+                            750 ; overlayable items in internal ram 
+                            751 ;--------------------------------------------------------
+                            752 	.area	OSEG    (OVR,DATA)
+                    0000    753 LGetDescriptorRequest$wTempInt$1$1==.
+   0000                     754 _GetDescriptorRequest_wTempInt_1_1::
+   0000                     755 	.ds 2
+                            756 ;--------------------------------------------------------
+                            757 ; indirectly addressable internal ram data
+                            758 ;--------------------------------------------------------
+                            759 	.area ISEG    (DATA)
+                            760 ;--------------------------------------------------------
+                            761 ; absolute internal ram data
+                            762 ;--------------------------------------------------------
+                            763 	.area IABS    (ABS,DATA)
+                            764 	.area IABS    (ABS,DATA)
+                            765 ;--------------------------------------------------------
+                            766 ; bit data
+                            767 ;--------------------------------------------------------
+                            768 	.area BSEG    (BIT)
+                            769 ;--------------------------------------------------------
+                            770 ; paged external ram data
+                            771 ;--------------------------------------------------------
+                            772 	.area PSEG    (PAG,XDATA)
+                            773 ;--------------------------------------------------------
+                            774 ; external ram data
+                            775 ;--------------------------------------------------------
+                            776 	.area XSEG    (XDATA)
+                            777 ;--------------------------------------------------------
+                            778 ; absolute external ram data
+                            779 ;--------------------------------------------------------
+                            780 	.area XABS    (ABS,XDATA)
+                            781 ;--------------------------------------------------------
+                            782 ; external initialized ram data
+                            783 ;--------------------------------------------------------
+                            784 	.area XISEG   (XDATA)
+                            785 	.area HOME    (CODE)
+                            786 	.area GSINIT0 (CODE)
+                            787 	.area GSINIT1 (CODE)
+                            788 	.area GSINIT2 (CODE)
+                            789 	.area GSINIT3 (CODE)
+                            790 	.area GSINIT4 (CODE)
+                            791 	.area GSINIT5 (CODE)
+                            792 	.area GSINIT  (CODE)
+                            793 	.area GSFINAL (CODE)
+                            794 	.area CSEG    (CODE)
+                            795 ;--------------------------------------------------------
+                            796 ; global & static initialisations
+                            797 ;--------------------------------------------------------
+                            798 	.area HOME    (CODE)
+                            799 	.area GSINIT  (CODE)
+                            800 	.area GSFINAL (CODE)
+                            801 	.area GSINIT  (CODE)
+                            802 ;--------------------------------------------------------
+                            803 ; Home
+                            804 ;--------------------------------------------------------
+                            805 	.area HOME    (CODE)
+                            806 	.area HOME    (CODE)
+                            807 ;--------------------------------------------------------
+                            808 ; code
+                            809 ;--------------------------------------------------------
+                            810 	.area CSEG    (CODE)
+                            811 ;------------------------------------------------------------
+                            812 ;Allocation info for local variables in function 'SetAddressRequest'
+                            813 ;------------------------------------------------------------
+                            814 ;------------------------------------------------------------
+                    0000    815 	G$SetAddressRequest$0$0 ==.
+                    0000    816 	C$USB_Standard_Requests.c$99$0$0 ==.
+                            817 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:99: void SetAddressRequest ()
+                            818 ;	-----------------------------------------
+                            819 ;	 function SetAddressRequest
+                            820 ;	-----------------------------------------
+   0000                     821 _SetAddressRequest:
+                    0002    822 	ar2 = 0x02
+                    0003    823 	ar3 = 0x03
+                    0004    824 	ar4 = 0x04
+                    0005    825 	ar5 = 0x05
+                    0006    826 	ar6 = 0x06
+                    0007    827 	ar7 = 0x07
+                    0000    828 	ar0 = 0x00
+                    0001    829 	ar1 = 0x01
+                    0000    830 	C$USB_Standard_Requests.c$103$1$1 ==.
+                            831 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:103: if ((gEp0Command.wIndex.i) || (gEp0Command.wLength.i) ||
+   0000 E5*04               832 	mov	a,(_gEp0Command + 0x0004)
+   0002 45*05               833 	orl	a,((_gEp0Command + 0x0004) + 1)
+   0004 70 0B               834 	jnz	00110$
+   0006 E5*06               835 	mov	a,(_gEp0Command + 0x0006)
+   0008 45*07               836 	orl	a,((_gEp0Command + 0x0006) + 1)
+   000A 70 05               837 	jnz	00110$
+                    000C    838 	C$USB_Standard_Requests.c$104$1$1 ==.
+                            839 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:104: (gDeviceStatus.bDevState == DEV_CONFIG))
+   000C AA*01               840 	mov	r2,(_gDeviceStatus + 0x0001)
+   000E BA 02 05            841 	cjne	r2,#0x02,00111$
+   0011                     842 00110$:
+                    0011    843 	C$USB_Standard_Requests.c$106$2$2 ==.
+                            844 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:106: bEpState = EP_ERROR;
+   0011 75*00 02            845 	mov	_bEpState,#0x02
+   0014 80 24               846 	sjmp	00112$
+   0016                     847 00111$:
+                    0016    848 	C$USB_Standard_Requests.c$112$3$4 ==.
+                            849 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:112: UWRITE_BYTE(FADDR, gEp0Command.wValue.c[1]);
+   0016 75 96 00            850 	mov	_USB0ADR,#0x00
+   0019 85*03 97            851 	mov	_USB0DAT,(_gEp0Command + 0x0003)
+   001C                     852 00101$:
+   001C E5 96               853 	mov	a,_USB0ADR
+   001E 20 E7 FB            854 	jb	acc.7,00101$
+                    0021    855 	C$USB_Standard_Requests.c$113$2$3 ==.
+                            856 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:113: if (gDeviceStatus.bDevState == DEV_DEFAULT &&
+   0021 EA                  857 	mov	a,r2
+   0022 70 07               858 	jnz	00105$
+                    0024    859 	C$USB_Standard_Requests.c$114$2$3 ==.
+                            860 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:114: gEp0Command.wValue.c[1] != 0)
+   0024 E5*03               861 	mov	a,(_gEp0Command + 0x0003)
+   0026 60 03               862 	jz	00105$
+                    0028    863 	C$USB_Standard_Requests.c$116$3$5 ==.
+                            864 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:116: gDeviceStatus.bDevState = DEV_ADDRESS;
+   0028 75*01 01            865 	mov	(_gDeviceStatus + 0x0001),#0x01
+   002B                     866 00105$:
+                    002B    867 	C$USB_Standard_Requests.c$118$2$3 ==.
+                            868 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:118: if (gDeviceStatus.bDevState == DEV_ADDRESS &&
+   002B 74 01               869 	mov	a,#0x01
+   002D B5*01 07            870 	cjne	a,(_gDeviceStatus + 0x0001),00108$
+                    0030    871 	C$USB_Standard_Requests.c$119$2$3 ==.
+                            872 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:119: gEp0Command.wValue.c[1] == 0)
+   0030 E5*03               873 	mov	a,(_gEp0Command + 0x0003)
+   0032 70 03               874 	jnz	00108$
+                    0034    875 	C$USB_Standard_Requests.c$121$3$6 ==.
+                            876 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:121: gDeviceStatus.bDevState = DEV_ADDRESS;
+   0034 75*01 01            877 	mov	(_gDeviceStatus + 0x0001),#0x01
+   0037                     878 00108$:
+                    0037    879 	C$USB_Standard_Requests.c$123$2$3 ==.
+                            880 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:123: bEpState = EP_IDLE;
+   0037 75*00 00            881 	mov	_bEpState,#0x00
+   003A                     882 00112$:
+                    003A    883 	C$USB_Standard_Requests.c$125$1$1 ==.
+                            884 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:125: gEp0Status.bEpState = bEpState;
+   003A 85*00*05            885 	mov	(_gEp0Status + 0x0005),_bEpState
+                    003D    886 	C$USB_Standard_Requests.c$126$1$1 ==.
+                    003D    887 	XG$SetAddressRequest$0$0 ==.
+   003D 22                  888 	ret
+                            889 ;------------------------------------------------------------
+                            890 ;Allocation info for local variables in function 'SetFeatureRequest'
+                            891 ;------------------------------------------------------------
+                            892 ;------------------------------------------------------------
+                    003E    893 	G$SetFeatureRequest$0$0 ==.
+                    003E    894 	C$USB_Standard_Requests.c$137$1$1 ==.
+                            895 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:137: void SetFeatureRequest ()
+                            896 ;	-----------------------------------------
+                            897 ;	 function SetFeatureRequest
+                            898 ;	-----------------------------------------
+   003E                     899 _SetFeatureRequest:
+                    003E    900 	C$USB_Standard_Requests.c$142$1$1 ==.
+                            901 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:142: if ((gEp0Command.wLength.i != 0) ||
+   003E E5*06               902 	mov	a,(_gEp0Command + 0x0006)
+   0040 45*07               903 	orl	a,((_gEp0Command + 0x0006) + 1)
+   0042 70 0E               904 	jnz	00101$
+                    0044    905 	C$USB_Standard_Requests.c$143$1$1 ==.
+                            906 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:143: (gDeviceStatus.bDevState == DEV_DEFAULT) ||
+   0044 E5*01               907 	mov	a,(_gDeviceStatus + 0x0001)
+   0046 FA                  908 	mov	r2,a
+   0047 60 09               909 	jz	00101$
+                    0049    910 	C$USB_Standard_Requests.c$144$1$1 ==.
+                            911 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:144: (gDeviceStatus.bDevState == DEV_ADDRESS && gEp0Command.wIndex.i != 0))
+   0049 BA 01 09            912 	cjne	r2,#0x01,00102$
+   004C E5*04               913 	mov	a,(_gEp0Command + 0x0004)
+   004E 45*05               914 	orl	a,((_gEp0Command + 0x0004) + 1)
+   0050 60 03               915 	jz	00102$
+   0052                     916 00101$:
+                    0052    917 	C$USB_Standard_Requests.c$146$2$2 ==.
+                            918 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:146: bEpState = EP_ERROR;
+   0052 75*00 02            919 	mov	_bEpState,#0x02
+   0055                     920 00102$:
+                    0055    921 	C$USB_Standard_Requests.c$150$1$1 ==.
+                            922 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:150: switch(gEp0Command.bmRequestType & CMD_MASK_RECIP)
+   0055 74 1F               923 	mov	a,#0x1F
+   0057 55*00               924 	anl	a,_gEp0Command
+   0059 FA                  925 	mov	r2,a
+   005A 60 05               926 	jz	00106$
+                    005C    927 	C$USB_Standard_Requests.c$153$2$3 ==.
+                            928 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:153: case CMD_RECIP_DEV:
+   005C BA 02 20            929 	cjne	r2,#0x02,00111$
+   005F 80 05               930 	sjmp	00107$
+   0061                     931 00106$:
+                    0061    932 	C$USB_Standard_Requests.c$154$2$3 ==.
+                            933 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:154: bEpState = EP_ERROR;
+   0061 75*00 02            934 	mov	_bEpState,#0x02
+                    0064    935 	C$USB_Standard_Requests.c$155$2$3 ==.
+                            936 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:155: break;
+                    0064    937 	C$USB_Standard_Requests.c$158$2$3 ==.
+                            938 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:158: case CMD_RECIP_EP:
+   0064 80 1C               939 	sjmp	00112$
+   0066                     940 00107$:
+                    0066    941 	C$USB_Standard_Requests.c$159$2$3 ==.
+                            942 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:159: if (gEp0Command.wValue.i == ENDPOINT_HALT)
+   0066 E5*02               943 	mov	a,(_gEp0Command + 0x0002)
+   0068 45*03               944 	orl	a,((_gEp0Command + 0x0002) + 1)
+   006A 70 0E               945 	jnz	00109$
+                    006C    946 	C$USB_Standard_Requests.c$161$3$4 ==.
+                            947 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:161: bEpState = HaltEndpoint(gEp0Command.wIndex.i);
+   006C 85*04 82            948 	mov	dpl,(_gEp0Command + 0x0004)
+   006F 85*05 83            949 	mov	dph,((_gEp0Command + 0x0004) + 1)
+   0072 12s00r00            950 	lcall	_HaltEndpoint
+   0075 85 82*00            951 	mov	_bEpState,dpl
+                    0078    952 	C$USB_Standard_Requests.c$162$3$4 ==.
+                            953 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:162: break;
+   0078 80 08               954 	sjmp	00112$
+   007A                     955 00109$:
+                    007A    956 	C$USB_Standard_Requests.c$166$3$5 ==.
+                            957 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:166: bEpState = EP_ERROR;
+   007A 75*00 02            958 	mov	_bEpState,#0x02
+                    007D    959 	C$USB_Standard_Requests.c$167$3$5 ==.
+                            960 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:167: break;
+                    007D    961 	C$USB_Standard_Requests.c$169$2$3 ==.
+                            962 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:169: default:
+   007D 80 03               963 	sjmp	00112$
+   007F                     964 00111$:
+                    007F    965 	C$USB_Standard_Requests.c$170$2$3 ==.
+                            966 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:170: bEpState = EP_ERROR;
+   007F 75*00 02            967 	mov	_bEpState,#0x02
+                    0082    968 	C$USB_Standard_Requests.c$172$1$1 ==.
+                            969 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:172: }
+   0082                     970 00112$:
+                    0082    971 	C$USB_Standard_Requests.c$173$1$1 ==.
+                            972 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:173: gEp0Status.bEpState = bEpState;
+   0082 85*00*05            973 	mov	(_gEp0Status + 0x0005),_bEpState
+                    0085    974 	C$USB_Standard_Requests.c$174$1$1 ==.
+                    0085    975 	XG$SetFeatureRequest$0$0 ==.
+   0085 22                  976 	ret
+                            977 ;------------------------------------------------------------
+                            978 ;Allocation info for local variables in function 'ClearFeatureRequest'
+                            979 ;------------------------------------------------------------
+                            980 ;------------------------------------------------------------
+                    0086    981 	G$ClearFeatureRequest$0$0 ==.
+                    0086    982 	C$USB_Standard_Requests.c$185$1$1 ==.
+                            983 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:185: void ClearFeatureRequest ()
+                            984 ;	-----------------------------------------
+                            985 ;	 function ClearFeatureRequest
+                            986 ;	-----------------------------------------
+   0086                     987 _ClearFeatureRequest:
+                    0086    988 	C$USB_Standard_Requests.c$190$1$1 ==.
+                            989 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:190: if ((gEp0Command.wLength.i != 0) || (gDeviceStatus.bDevState == DEV_DEFAULT) ||
+   0086 E5*06               990 	mov	a,(_gEp0Command + 0x0006)
+   0088 45*07               991 	orl	a,((_gEp0Command + 0x0006) + 1)
+   008A 70 0E               992 	jnz	00101$
+   008C E5*01               993 	mov	a,(_gDeviceStatus + 0x0001)
+   008E FA                  994 	mov	r2,a
+   008F 60 09               995 	jz	00101$
+                    0091    996 	C$USB_Standard_Requests.c$191$1$1 ==.
+                            997 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:191: (gDeviceStatus.bDevState == DEV_ADDRESS && gEp0Command.wIndex.i != 0))
+   0091 BA 01 09            998 	cjne	r2,#0x01,00102$
+   0094 E5*04               999 	mov	a,(_gEp0Command + 0x0004)
+   0096 45*05              1000 	orl	a,((_gEp0Command + 0x0004) + 1)
+   0098 60 03              1001 	jz	00102$
+   009A                    1002 00101$:
+                    009A   1003 	C$USB_Standard_Requests.c$193$2$2 ==.
+                           1004 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:193: bEpState = EP_ERROR;
+   009A 75*00 02           1005 	mov	_bEpState,#0x02
+   009D                    1006 00102$:
+                    009D   1007 	C$USB_Standard_Requests.c$197$1$1 ==.
+                           1008 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:197: switch(gEp0Command.bmRequestType & CMD_MASK_RECIP)
+   009D 74 1F              1009 	mov	a,#0x1F
+   009F 55*00              1010 	anl	a,_gEp0Command
+   00A1 FA                 1011 	mov	r2,a
+   00A2 60 05              1012 	jz	00106$
+                    00A4   1013 	C$USB_Standard_Requests.c$200$2$3 ==.
+                           1014 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:200: case CMD_RECIP_DEV:
+   00A4 BA 02 20           1015 	cjne	r2,#0x02,00111$
+   00A7 80 05              1016 	sjmp	00107$
+   00A9                    1017 00106$:
+                    00A9   1018 	C$USB_Standard_Requests.c$202$2$3 ==.
+                           1019 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:202: bEpState = EP_ERROR;
+   00A9 75*00 02           1020 	mov	_bEpState,#0x02
+                    00AC   1021 	C$USB_Standard_Requests.c$203$2$3 ==.
+                           1022 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:203: break;
+                    00AC   1023 	C$USB_Standard_Requests.c$206$2$3 ==.
+                           1024 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:206: case CMD_RECIP_EP:
+   00AC 80 1C              1025 	sjmp	00112$
+   00AE                    1026 00107$:
+                    00AE   1027 	C$USB_Standard_Requests.c$207$2$3 ==.
+                           1028 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:207: if (gEp0Command.wValue.i == ENDPOINT_HALT)
+   00AE E5*02              1029 	mov	a,(_gEp0Command + 0x0002)
+   00B0 45*03              1030 	orl	a,((_gEp0Command + 0x0002) + 1)
+   00B2 70 0E              1031 	jnz	00109$
+                    00B4   1032 	C$USB_Standard_Requests.c$210$3$4 ==.
+                           1033 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:210: bEpState = EnableEndpoint(gEp0Command.wIndex.i);
+   00B4 85*04 82           1034 	mov	dpl,(_gEp0Command + 0x0004)
+   00B7 85*05 83           1035 	mov	dph,((_gEp0Command + 0x0004) + 1)
+   00BA 12s00r00           1036 	lcall	_EnableEndpoint
+   00BD 85 82*00           1037 	mov	_bEpState,dpl
+                    00C0   1038 	C$USB_Standard_Requests.c$211$3$4 ==.
+                           1039 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:211: break;
+   00C0 80 08              1040 	sjmp	00112$
+   00C2                    1041 00109$:
+                    00C2   1042 	C$USB_Standard_Requests.c$215$3$5 ==.
+                           1043 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:215: bEpState = EP_ERROR;
+   00C2 75*00 02           1044 	mov	_bEpState,#0x02
+                    00C5   1045 	C$USB_Standard_Requests.c$216$3$5 ==.
+                           1046 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:216: break;
+                    00C5   1047 	C$USB_Standard_Requests.c$218$2$3 ==.
+                           1048 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:218: default:
+   00C5 80 03              1049 	sjmp	00112$
+   00C7                    1050 00111$:
+                    00C7   1051 	C$USB_Standard_Requests.c$219$2$3 ==.
+                           1052 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:219: bEpState = EP_ERROR;
+   00C7 75*00 02           1053 	mov	_bEpState,#0x02
+                    00CA   1054 	C$USB_Standard_Requests.c$221$1$1 ==.
+                           1055 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:221: }
+   00CA                    1056 00112$:
+                    00CA   1057 	C$USB_Standard_Requests.c$222$1$1 ==.
+                           1058 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:222: gEp0Status.bEpState = bEpState;
+   00CA 85*00*05           1059 	mov	(_gEp0Status + 0x0005),_bEpState
+                    00CD   1060 	C$USB_Standard_Requests.c$223$1$1 ==.
+                    00CD   1061 	XG$ClearFeatureRequest$0$0 ==.
+   00CD 22                 1062 	ret
+                           1063 ;------------------------------------------------------------
+                           1064 ;Allocation info for local variables in function 'SetConfigurationRequest'
+                           1065 ;------------------------------------------------------------
+                           1066 ;------------------------------------------------------------
+                    00CE   1067 	G$SetConfigurationRequest$0$0 ==.
+                    00CE   1068 	C$USB_Standard_Requests.c$234$1$1 ==.
+                           1069 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:234: void SetConfigurationRequest ()
+                           1070 ;	-----------------------------------------
+                           1071 ;	 function SetConfigurationRequest
+                           1072 ;	-----------------------------------------
+   00CE                    1073 _SetConfigurationRequest:
+                    00CE   1074 	C$USB_Standard_Requests.c$238$1$1 ==.
+                           1075 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:238: if ((gEp0Command.wIndex.i) || (gEp0Command.wLength.i) ||
+   00CE E5*04              1076 	mov	a,(_gEp0Command + 0x0004)
+   00D0 45*05              1077 	orl	a,((_gEp0Command + 0x0004) + 1)
+   00D2 70 0A              1078 	jnz	00107$
+   00D4 E5*06              1079 	mov	a,(_gEp0Command + 0x0006)
+   00D6 45*07              1080 	orl	a,((_gEp0Command + 0x0006) + 1)
+   00D8 70 04              1081 	jnz	00107$
+                    00DA   1082 	C$USB_Standard_Requests.c$239$1$1 ==.
+                           1083 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:239: (gDeviceStatus.bDevState == DEV_DEFAULT))
+   00DA E5*01              1084 	mov	a,(_gDeviceStatus + 0x0001)
+   00DC 70 05              1085 	jnz	00108$
+   00DE                    1086 00107$:
+                    00DE   1087 	C$USB_Standard_Requests.c$241$2$2 ==.
+                           1088 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:241: bEpState = EP_ERROR;
+   00DE 75*00 02           1089 	mov	_bEpState,#0x02
+   00E1 80 22              1090 	sjmp	00109$
+   00E3                    1091 00108$:
+                    00E3   1092 	C$USB_Standard_Requests.c$247$2$3 ==.
+                           1093 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:247: if (gEp0Command.wValue.c[1] >
+                    00E3   1094 	C$USB_Standard_Requests.c$248$2$3 ==.
+                           1095 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:248: gDescriptorMap.bStdDevDsc[std_bNumConfigurations])
+   00E3 90s00r11           1096 	mov	dptr,#(_gDescriptorMap + 0x0011)
+   00E6 E4                 1097 	clr	a
+   00E7 93                 1098 	movc	a,@a+dptr
+   00E8 FA                 1099 	mov	r2,a
+   00E9 C3                 1100 	clr	c
+   00EA 95*03              1101 	subb	a,(_gEp0Command + 0x0003)
+   00EC 50 05              1102 	jnc	00105$
+                    00EE   1103 	C$USB_Standard_Requests.c$250$3$4 ==.
+                           1104 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:250: bEpState = EP_ERROR;
+   00EE 75*00 02           1105 	mov	_bEpState,#0x02
+   00F1 80 12              1106 	sjmp	00109$
+   00F3                    1107 00105$:
+                    00F3   1108 	C$USB_Standard_Requests.c$254$2$3 ==.
+                           1109 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:254: else if  (gEp0Command.wValue.c[1] == 0)
+   00F3 E5*03              1110 	mov	a,(_gEp0Command + 0x0003)
+   00F5 70 05              1111 	jnz	00102$
+                    00F7   1112 	C$USB_Standard_Requests.c$255$2$3 ==.
+                           1113 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:255: gDeviceStatus.bDevState = DEV_ADDRESS;
+   00F7 75*01 01           1114 	mov	(_gDeviceStatus + 0x0001),#0x01
+   00FA 80 09              1115 	sjmp	00109$
+   00FC                    1116 00102$:
+                    00FC   1117 	C$USB_Standard_Requests.c$259$2$3 ==.
+                           1118 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:259: bEpState = SetConfiguration(gEp0Command.wValue.c[1]);
+   00FC 85*03 82           1119 	mov	dpl,(_gEp0Command + 0x0003)
+   00FF 12s00r00           1120 	lcall	_SetConfiguration
+   0102 85 82*00           1121 	mov	_bEpState,dpl
+   0105                    1122 00109$:
+                    0105   1123 	C$USB_Standard_Requests.c$261$1$1 ==.
+                           1124 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:261: gEp0Status.bEpState = bEpState;
+   0105 85*00*05           1125 	mov	(_gEp0Status + 0x0005),_bEpState
+                    0108   1126 	C$USB_Standard_Requests.c$262$1$1 ==.
+                    0108   1127 	XG$SetConfigurationRequest$0$0 ==.
+   0108 22                 1128 	ret
+                           1129 ;------------------------------------------------------------
+                           1130 ;Allocation info for local variables in function 'SetInterfaceRequest'
+                           1131 ;------------------------------------------------------------
+                           1132 ;------------------------------------------------------------
+                    0109   1133 	G$SetInterfaceRequest$0$0 ==.
+                    0109   1134 	C$USB_Standard_Requests.c$273$1$1 ==.
+                           1135 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:273: void SetInterfaceRequest()
+                           1136 ;	-----------------------------------------
+                           1137 ;	 function SetInterfaceRequest
+                           1138 ;	-----------------------------------------
+   0109                    1139 _SetInterfaceRequest:
+                    0109   1140 	C$USB_Standard_Requests.c$305$1$1 ==.
+                           1141 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:305: }
+                    0109   1142 	C$USB_Standard_Requests.c$305$1$1 ==.
+                    0109   1143 	XG$SetInterfaceRequest$0$0 ==.
+   0109 22                 1144 	ret
+                           1145 ;------------------------------------------------------------
+                           1146 ;Allocation info for local variables in function 'GetStatusRequest'
+                           1147 ;------------------------------------------------------------
+                           1148 ;------------------------------------------------------------
+                    010A   1149 	G$GetStatusRequest$0$0 ==.
+                    010A   1150 	C$USB_Standard_Requests.c$316$1$1 ==.
+                           1151 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:316: void GetStatusRequest ()
+                           1152 ;	-----------------------------------------
+                           1153 ;	 function GetStatusRequest
+                           1154 ;	-----------------------------------------
+   010A                    1155 _GetStatusRequest:
+                    010A   1156 	C$USB_Standard_Requests.c$319$1$1 ==.
+                           1157 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:319: if ((gEp0Command.wValue.i != 0) || (gEp0Command.wLength.i != 0x02) ||
+   010A E5*02              1158 	mov	a,(_gEp0Command + 0x0002)
+   010C 45*03              1159 	orl	a,((_gEp0Command + 0x0002) + 1)
+   010E 70 1B              1160 	jnz	00111$
+   0110 74 02              1161 	mov	a,#0x02
+   0112 B5*06 06           1162 	cjne	a,(_gEp0Command + 0x0006),00130$
+   0115 E4                 1163 	clr	a
+   0116 B5*07 02           1164 	cjne	a,((_gEp0Command + 0x0006) + 1),00130$
+   0119 80 02              1165 	sjmp	00131$
+   011B                    1166 00130$:
+   011B 80 0E              1167 	sjmp	00111$
+   011D                    1168 00131$:
+                    011D   1169 	C$USB_Standard_Requests.c$320$1$1 ==.
+                           1170 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:320: (gDeviceStatus.bDevState == DEV_DEFAULT) ||
+   011D E5*01              1171 	mov	a,(_gDeviceStatus + 0x0001)
+   011F FA                 1172 	mov	r2,a
+   0120 60 09              1173 	jz	00111$
+                    0122   1174 	C$USB_Standard_Requests.c$321$1$1 ==.
+                           1175 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:321: (gDeviceStatus.bDevState == DEV_ADDRESS && gEp0Command.wIndex.i != 0))
+   0122 BA 01 0B           1176 	cjne	r2,#0x01,00112$
+   0125 E5*04              1177 	mov	a,(_gEp0Command + 0x0004)
+   0127 45*05              1178 	orl	a,((_gEp0Command + 0x0004) + 1)
+   0129 60 05              1179 	jz	00112$
+   012B                    1180 00111$:
+                    012B   1181 	C$USB_Standard_Requests.c$323$2$2 ==.
+                           1182 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:323: bEpState = EP_ERROR;
+   012B 75*00 02           1183 	mov	_bEpState,#0x02
+   012E 80 63              1184 	sjmp	00113$
+   0130                    1185 00112$:
+                    0130   1186 	C$USB_Standard_Requests.c$329$2$3 ==.
+                           1187 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:329: switch (gEp0Command.bmRequestType & CMD_MASK_RECIP)
+   0130 74 1F              1188 	mov	a,#0x1F
+   0132 55*00              1189 	anl	a,_gEp0Command
+   0134 FA                 1190 	mov	r2,a
+   0135 60 0A              1191 	jz	00101$
+   0137 BA 01 02           1192 	cjne	r2,#0x01,00137$
+   013A 80 1E              1193 	sjmp	00105$
+   013C                    1194 00137$:
+                    013C   1195 	C$USB_Standard_Requests.c$332$3$4 ==.
+                           1196 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:332: case CMD_RECIP_DEV:
+   013C BA 02 3F           1197 	cjne	r2,#0x02,00109$
+   013F 80 21              1198 	sjmp	00106$
+   0141                    1199 00101$:
+                    0141   1200 	C$USB_Standard_Requests.c$334$3$4 ==.
+                           1201 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:334: if (gEp0Command.wIndex.i != 0)
+   0141 E5*04              1202 	mov	a,(_gEp0Command + 0x0004)
+   0143 45*05              1203 	orl	a,((_gEp0Command + 0x0004) + 1)
+   0145 60 05              1204 	jz	00103$
+                    0147   1205 	C$USB_Standard_Requests.c$335$3$4 ==.
+                           1206 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:335: bEpState = EP_ERROR;
+   0147 75*00 02           1207 	mov	_bEpState,#0x02
+   014A 80 35              1208 	sjmp	00110$
+   014C                    1209 00103$:
+                    014C   1210 	C$USB_Standard_Requests.c$339$4$5 ==.
+                           1211 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:339: gEp0Status.wData.c[1] = 0;
+   014C 75*0A 00           1212 	mov	(_gEp0Status + 0x000a),#0x00
+                    014F   1213 	C$USB_Standard_Requests.c$340$4$5 ==.
+                           1214 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:340: gEp0Status.wData.c[0] = gDeviceStatus.bRemoteWakeupStatus;
+   014F 85*03*09           1215 	mov	(_gEp0Status + 0x0009),(_gDeviceStatus + 0x0003)
+                    0152   1216 	C$USB_Standard_Requests.c$341$4$5 ==.
+                           1217 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:341: gEp0Status.wData.c[0] |= gDeviceStatus.bSelfPoweredStatus;
+   0152 E5*04              1218 	mov	a,(_gDeviceStatus + 0x0004)
+   0154 45*09              1219 	orl	a,(_gEp0Status + 0x0009)
+   0156 F5*09              1220 	mov	(_gEp0Status + 0x0009),a
+                    0158   1221 	C$USB_Standard_Requests.c$343$3$4 ==.
+                           1222 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:343: break;
+                    0158   1223 	C$USB_Standard_Requests.c$346$3$4 ==.
+                           1224 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:346: case CMD_RECIP_IF:
+   0158 80 27              1225 	sjmp	00110$
+   015A                    1226 00105$:
+                    015A   1227 	C$USB_Standard_Requests.c$348$3$4 ==.
+                           1228 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:348: gEp0Status.wData.i = 0;
+   015A 75*09 00           1229 	mov	(_gEp0Status + 0x0009),#0x00
+   015D 75*0A 00           1230 	mov	((_gEp0Status + 0x0009) + 1),#0x00
+                    0160   1231 	C$USB_Standard_Requests.c$349$3$4 ==.
+                           1232 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:349: break;
+                    0160   1233 	C$USB_Standard_Requests.c$352$3$4 ==.
+                           1234 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:352: case CMD_RECIP_EP:
+   0160 80 1F              1235 	sjmp	00110$
+   0162                    1236 00106$:
+                    0162   1237 	C$USB_Standard_Requests.c$354$3$4 ==.
+                           1238 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:354: gEp0Status.wData.i = 0;
+   0162 75*09 00           1239 	mov	(_gEp0Status + 0x0009),#0x00
+   0165 75*0A 00           1240 	mov	((_gEp0Status + 0x0009) + 1),#0x00
+                    0168   1241 	C$USB_Standard_Requests.c$355$3$4 ==.
+                           1242 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:355: if (GetEpStatus(gEp0Command.wIndex.i) == EP_HALTED)
+   0168 85*04 82           1243 	mov	dpl,(_gEp0Command + 0x0004)
+   016B 85*05 83           1244 	mov	dph,((_gEp0Command + 0x0004) + 1)
+   016E 12s00r00           1245 	lcall	_GetEpStatus
+   0171 AA 82              1246 	mov	r2,dpl
+   0173 BA 03 0B           1247 	cjne	r2,#0x03,00110$
+                    0176   1248 	C$USB_Standard_Requests.c$356$3$4 ==.
+                           1249 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:356: gEp0Status.wData.c[0] |= 0x01;
+   0176 74 01              1250 	mov	a,#0x01
+   0178 45*09              1251 	orl	a,(_gEp0Status + 0x0009)
+   017A F5*09              1252 	mov	(_gEp0Status + 0x0009),a
+                    017C   1253 	C$USB_Standard_Requests.c$357$3$4 ==.
+                           1254 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:357: break;
+                    017C   1255 	C$USB_Standard_Requests.c$360$3$4 ==.
+                           1256 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:360: default:
+   017C 80 03              1257 	sjmp	00110$
+   017E                    1258 00109$:
+                    017E   1259 	C$USB_Standard_Requests.c$361$3$4 ==.
+                           1260 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:361: bEpState = EP_ERROR;
+   017E 75*00 02           1261 	mov	_bEpState,#0x02
+                    0181   1262 	C$USB_Standard_Requests.c$363$2$3 ==.
+                           1263 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:363: }
+   0181                    1264 00110$:
+                    0181   1265 	C$USB_Standard_Requests.c$366$2$3 ==.
+                           1266 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:366: bEpState = EP_TX;
+   0181 75*00 01           1267 	mov	_bEpState,#0x01
+                    0184   1268 	C$USB_Standard_Requests.c$369$2$3 ==.
+                           1269 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:369: gEp0Status.pData = (BYTE *)&gEp0Status.wData.i;
+   0184 75*06r09           1270 	mov	(_gEp0Status + 0x0006),#(_gEp0Status + 0x0009)
+   0187 75*07s00           1271 	mov	((_gEp0Status + 0x0006) + 1),#((_gEp0Status + 0x0009) >> 8)
+   018A 75*08 40           1272 	mov	((_gEp0Status + 0x0006) + 2),#0x40
+                    018D   1273 	C$USB_Standard_Requests.c$370$2$3 ==.
+                           1274 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:370: gEp0Status.uNumBytes = 2;
+   018D 75*01 02           1275 	mov	(_gEp0Status + 0x0001),#0x02
+   0190 75*02 00           1276 	mov	((_gEp0Status + 0x0001) + 1),#0x00
+   0193                    1277 00113$:
+                    0193   1278 	C$USB_Standard_Requests.c$372$1$1 ==.
+                           1279 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:372: gEp0Status.bEpState = bEpState;
+   0193 85*00*05           1280 	mov	(_gEp0Status + 0x0005),_bEpState
+                    0196   1281 	C$USB_Standard_Requests.c$373$1$1 ==.
+                    0196   1282 	XG$GetStatusRequest$0$0 ==.
+   0196 22                 1283 	ret
+                           1284 ;------------------------------------------------------------
+                           1285 ;Allocation info for local variables in function 'GetDescriptorRequest'
+                           1286 ;------------------------------------------------------------
+                           1287 ;wTempInt                  Allocated with name '_GetDescriptorRequest_wTempInt_1_1'
+                           1288 ;------------------------------------------------------------
+                    0197   1289 	G$GetDescriptorRequest$0$0 ==.
+                    0197   1290 	C$USB_Standard_Requests.c$384$1$1 ==.
+                           1291 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:384: void GetDescriptorRequest ()
+                           1292 ;	-----------------------------------------
+                           1293 ;	 function GetDescriptorRequest
+                           1294 ;	-----------------------------------------
+   0197                    1295 _GetDescriptorRequest:
+                    0197   1296 	C$USB_Standard_Requests.c$390$1$1 ==.
+                           1297 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:390: switch (gEp0Command.wValue.c[0])
+   0197 AA*02              1298 	mov	r2,(_gEp0Command + 0x0002)
+   0199 BA 01 02           1299 	cjne	r2,#0x01,00118$
+   019C 80 05              1300 	sjmp	00101$
+   019E                    1301 00118$:
+                    019E   1302 	C$USB_Standard_Requests.c$393$2$2 ==.
+                           1303 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:393: case DSC_DEVICE:
+   019E BA 02 6A           1304 	cjne	r2,#0x02,00110$
+   01A1 80 25              1305 	sjmp	00104$
+   01A3                    1306 00101$:
+                    01A3   1307 	C$USB_Standard_Requests.c$395$2$2 ==.
+                           1308 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:395: uNumBytes = STD_DSC_SIZE;
+   01A3 75*01 12           1309 	mov	_uNumBytes,#0x12
+   01A6 E4                 1310 	clr	a
+   01A7 F5*02              1311 	mov	(_uNumBytes + 1),a
+                    01A9   1312 	C$USB_Standard_Requests.c$397$2$2 ==.
+                           1313 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:397: if (uNumBytes > gEp0Command.wLength.i)
+   01A9 C3                 1314 	clr	c
+   01AA E5*06              1315 	mov	a,(_gEp0Command + 0x0006)
+   01AC 94 12              1316 	subb	a,#0x12
+   01AE E5*07              1317 	mov	a,((_gEp0Command + 0x0006) + 1)
+   01B0 94 00              1318 	subb	a,#0x00
+   01B2 50 06              1319 	jnc	00103$
+                    01B4   1320 	C$USB_Standard_Requests.c$399$3$3 ==.
+                           1321 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:399: uNumBytes = gEp0Command.wLength.i;
+   01B4 85*06*01           1322 	mov	_uNumBytes,(_gEp0Command + 0x0006)
+   01B7 85*07*02           1323 	mov	(_uNumBytes + 1),((_gEp0Command + 0x0006) + 1)
+   01BA                    1324 00103$:
+                    01BA   1325 	C$USB_Standard_Requests.c$402$2$2 ==.
+                           1326 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:402: gEp0Status.pData = (void*)&gDescriptorMap.bStdDevDsc;
+   01BA 75*06r00           1327 	mov	(_gEp0Status + 0x0006),#_gDescriptorMap
+   01BD 75*07s00           1328 	mov	((_gEp0Status + 0x0006) + 1),#(_gDescriptorMap >> 8)
+   01C0 75*08 80           1329 	mov	((_gEp0Status + 0x0006) + 2),#0x80
+                    01C3   1330 	C$USB_Standard_Requests.c$403$2$2 ==.
+                           1331 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:403: bEpState = EP_TX;
+   01C3 75*00 01           1332 	mov	_bEpState,#0x01
+                    01C6   1333 	C$USB_Standard_Requests.c$404$2$2 ==.
+                           1334 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:404: break;
+                    01C6   1335 	C$USB_Standard_Requests.c$407$2$2 ==.
+                           1336 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:407: case DSC_CONFIG:
+   01C6 80 43              1337 	sjmp	00110$
+   01C8                    1338 00104$:
+                    01C8   1339 	C$USB_Standard_Requests.c$409$2$2 ==.
+                           1340 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:409: if (gEp0Command.wValue.c[1] >
+                    01C8   1341 	C$USB_Standard_Requests.c$410$2$2 ==.
+                           1342 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:410: gDescriptorMap.bStdDevDsc[std_bNumConfigurations])
+   01C8 90s00r11           1343 	mov	dptr,#(_gDescriptorMap + 0x0011)
+   01CB E4                 1344 	clr	a
+   01CC 93                 1345 	movc	a,@a+dptr
+   01CD FA                 1346 	mov	r2,a
+   01CE C3                 1347 	clr	c
+   01CF 95*03              1348 	subb	a,(_gEp0Command + 0x0003)
+   01D1 50 05              1349 	jnc	00108$
+                    01D3   1350 	C$USB_Standard_Requests.c$412$3$4 ==.
+                           1351 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:412: bEpState = EP_ERROR;
+   01D3 75*00 02           1352 	mov	_bEpState,#0x02
+   01D6 80 33              1353 	sjmp	00110$
+   01D8                    1354 00108$:
+                    01D8   1355 	C$USB_Standard_Requests.c$418$3$5 ==.
+                           1356 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:418: wTempInt.c[1] = gDescriptorMap.bCfg1[cfg_wTotalLength_lsb];
+   01D8 90s00r14           1357 	mov	dptr,#(_gDescriptorMap + 0x0014)
+   01DB E4                 1358 	clr	a
+   01DC 93                 1359 	movc	a,@a+dptr
+   01DD FA                 1360 	mov	r2,a
+   01DE 8A*01              1361 	mov	(_GetDescriptorRequest_wTempInt_1_1 + 0x0001),r2
+                    01E0   1362 	C$USB_Standard_Requests.c$419$3$5 ==.
+                           1363 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:419: wTempInt.c[0] = gDescriptorMap.bCfg1[cfg_wTotalLength_msb];
+   01E0 90s00r15           1364 	mov	dptr,#(_gDescriptorMap + 0x0015)
+   01E3 E4                 1365 	clr	a
+   01E4 93                 1366 	movc	a,@a+dptr
+   01E5 FA                 1367 	mov	r2,a
+   01E6 8A*00              1368 	mov	_GetDescriptorRequest_wTempInt_1_1,r2
+                    01E8   1369 	C$USB_Standard_Requests.c$420$3$5 ==.
+                           1370 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:420: uNumBytes = wTempInt.i;
+   01E8 85*00*01           1371 	mov	_uNumBytes,_GetDescriptorRequest_wTempInt_1_1
+   01EB 85*01*02           1372 	mov	(_uNumBytes + 1),(_GetDescriptorRequest_wTempInt_1_1 + 1)
+                    01EE   1373 	C$USB_Standard_Requests.c$423$3$5 ==.
+                           1374 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:423: if (uNumBytes > gEp0Command.wLength.i)
+   01EE C3                 1375 	clr	c
+   01EF E5*06              1376 	mov	a,(_gEp0Command + 0x0006)
+   01F1 95*01              1377 	subb	a,_uNumBytes
+   01F3 E5*07              1378 	mov	a,((_gEp0Command + 0x0006) + 1)
+   01F5 95*02              1379 	subb	a,(_uNumBytes + 1)
+   01F7 50 06              1380 	jnc	00106$
+                    01F9   1381 	C$USB_Standard_Requests.c$425$4$6 ==.
+                           1382 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:425: uNumBytes = gEp0Command.wLength.i;
+   01F9 85*06*01           1383 	mov	_uNumBytes,(_gEp0Command + 0x0006)
+   01FC 85*07*02           1384 	mov	(_uNumBytes + 1),((_gEp0Command + 0x0006) + 1)
+   01FF                    1385 00106$:
+                    01FF   1386 	C$USB_Standard_Requests.c$428$3$5 ==.
+                           1387 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:428: gEp0Status.pData = &gDescriptorMap.bCfg1;
+   01FF 75*06r12           1388 	mov	(_gEp0Status + 0x0006),#(_gDescriptorMap + 0x0012)
+   0202 75*07s00           1389 	mov	((_gEp0Status + 0x0006) + 1),#((_gDescriptorMap + 0x0012) >> 8)
+   0205 75*08 80           1390 	mov	((_gEp0Status + 0x0006) + 2),#0x80
+                    0208   1391 	C$USB_Standard_Requests.c$429$3$5 ==.
+                           1392 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:429: bEpState = EP_TX;
+   0208 75*00 01           1393 	mov	_bEpState,#0x01
+                    020B   1394 	C$USB_Standard_Requests.c$432$1$1 ==.
+                           1395 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:432: }
+   020B                    1396 00110$:
+                    020B   1397 	C$USB_Standard_Requests.c$433$1$1 ==.
+                           1398 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:433: gEp0Status.uNumBytes = uNumBytes;
+   020B 85*01*01           1399 	mov	(_gEp0Status + 0x0001),_uNumBytes
+   020E 85*02*02           1400 	mov	((_gEp0Status + 0x0001) + 1),(_uNumBytes + 1)
+                    0211   1401 	C$USB_Standard_Requests.c$434$1$1 ==.
+                           1402 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:434: gEp0Status.bEpState = bEpState;
+   0211 85*00*05           1403 	mov	(_gEp0Status + 0x0005),_bEpState
+                    0214   1404 	C$USB_Standard_Requests.c$435$1$1 ==.
+                    0214   1405 	XG$GetDescriptorRequest$0$0 ==.
+   0214 22                 1406 	ret
+                           1407 ;------------------------------------------------------------
+                           1408 ;Allocation info for local variables in function 'GetConfigurationRequest'
+                           1409 ;------------------------------------------------------------
+                           1410 ;------------------------------------------------------------
+                    0215   1411 	G$GetConfigurationRequest$0$0 ==.
+                    0215   1412 	C$USB_Standard_Requests.c$446$1$1 ==.
+                           1413 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:446: void GetConfigurationRequest ()
+                           1414 ;	-----------------------------------------
+                           1415 ;	 function GetConfigurationRequest
+                           1416 ;	-----------------------------------------
+   0215                    1417 _GetConfigurationRequest:
+                    0215   1418 	C$USB_Standard_Requests.c$450$1$1 ==.
+                           1419 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:450: if ((gEp0Command.wLength.i != 1) || (gEp0Command.wIndex.i) ||
+   0215 74 01              1420 	mov	a,#0x01
+   0217 B5*06 06           1421 	cjne	a,(_gEp0Command + 0x0006),00116$
+   021A E4                 1422 	clr	a
+   021B B5*07 02           1423 	cjne	a,((_gEp0Command + 0x0006) + 1),00116$
+   021E 80 02              1424 	sjmp	00117$
+   0220                    1425 00116$:
+   0220 80 11              1426 	sjmp	00104$
+   0222                    1427 00117$:
+   0222 E5*04              1428 	mov	a,(_gEp0Command + 0x0004)
+   0224 45*05              1429 	orl	a,((_gEp0Command + 0x0004) + 1)
+   0226 70 0B              1430 	jnz	00104$
+                    0228   1431 	C$USB_Standard_Requests.c$451$1$1 ==.
+                           1432 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:451: (gEp0Command.wValue.i) || (gDeviceStatus.bDevState == DEV_DEFAULT))
+   0228 E5*02              1433 	mov	a,(_gEp0Command + 0x0002)
+   022A 45*03              1434 	orl	a,((_gEp0Command + 0x0002) + 1)
+   022C 70 05              1435 	jnz	00104$
+   022E E5*01              1436 	mov	a,(_gDeviceStatus + 0x0001)
+   0230 FA                 1437 	mov	r2,a
+   0231 70 05              1438 	jnz	00105$
+   0233                    1439 00104$:
+                    0233   1440 	C$USB_Standard_Requests.c$453$2$2 ==.
+                           1441 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:453: bEpState = EP_ERROR;
+   0233 75*00 02           1442 	mov	_bEpState,#0x02
+   0236 80 23              1443 	sjmp	00106$
+   0238                    1444 00105$:
+                    0238   1445 	C$USB_Standard_Requests.c$456$1$1 ==.
+                           1446 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:456: else if (gDeviceStatus.bDevState == DEV_ADDRESS)
+   0238 BA 01 14           1447 	cjne	r2,#0x01,00102$
+                    023B   1448 	C$USB_Standard_Requests.c$459$2$3 ==.
+                           1449 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:459: gEp0Status.wData.i = 0;
+   023B 75*09 00           1450 	mov	(_gEp0Status + 0x0009),#0x00
+   023E 75*0A 00           1451 	mov	((_gEp0Status + 0x0009) + 1),#0x00
+                    0241   1452 	C$USB_Standard_Requests.c$461$2$3 ==.
+                           1453 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:461: gEp0Status.pData = (BYTE *)&gEp0Status.wData.i;
+   0241 75*06r09           1454 	mov	(_gEp0Status + 0x0006),#(_gEp0Status + 0x0009)
+   0244 75*07s00           1455 	mov	((_gEp0Status + 0x0006) + 1),#((_gEp0Status + 0x0009) >> 8)
+   0247 75*08 40           1456 	mov	((_gEp0Status + 0x0006) + 2),#0x40
+                    024A   1457 	C$USB_Standard_Requests.c$463$2$3 ==.
+                           1458 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:463: bEpState = EP_TX;
+   024A 75*00 01           1459 	mov	_bEpState,#0x01
+   024D 80 0C              1460 	sjmp	00106$
+   024F                    1461 00102$:
+                    024F   1462 	C$USB_Standard_Requests.c$469$2$4 ==.
+                           1463 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:469: gEp0Status.pData = (void *)&gDescriptorMap.bCfg1[cfg_bConfigurationValue];
+   024F 75*06r17           1464 	mov	(_gEp0Status + 0x0006),#(_gDescriptorMap + 0x0017)
+   0252 75*07s00           1465 	mov	((_gEp0Status + 0x0006) + 1),#((_gDescriptorMap + 0x0017) >> 8)
+   0255 75*08 80           1466 	mov	((_gEp0Status + 0x0006) + 2),#0x80
+                    0258   1467 	C$USB_Standard_Requests.c$472$2$4 ==.
+                           1468 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:472: bEpState = EP_TX;
+   0258 75*00 01           1469 	mov	_bEpState,#0x01
+   025B                    1470 00106$:
+                    025B   1471 	C$USB_Standard_Requests.c$474$1$1 ==.
+                           1472 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:474: gEp0Status.uNumBytes = 1;
+   025B 75*01 01           1473 	mov	(_gEp0Status + 0x0001),#0x01
+   025E 75*02 00           1474 	mov	((_gEp0Status + 0x0001) + 1),#0x00
+                    0261   1475 	C$USB_Standard_Requests.c$475$1$1 ==.
+                           1476 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:475: gEp0Status.bEpState = bEpState;
+   0261 85*00*05           1477 	mov	(_gEp0Status + 0x0005),_bEpState
+                    0264   1478 	C$USB_Standard_Requests.c$476$1$1 ==.
+                    0264   1479 	XG$GetConfigurationRequest$0$0 ==.
+   0264 22                 1480 	ret
+                           1481 ;------------------------------------------------------------
+                           1482 ;Allocation info for local variables in function 'GetInterfaceRequest'
+                           1483 ;------------------------------------------------------------
+                           1484 ;------------------------------------------------------------
+                    0265   1485 	G$GetInterfaceRequest$0$0 ==.
+                    0265   1486 	C$USB_Standard_Requests.c$487$1$1 ==.
+                           1487 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:487: void GetInterfaceRequest ()
+                           1488 ;	-----------------------------------------
+                           1489 ;	 function GetInterfaceRequest
+                           1490 ;	-----------------------------------------
+   0265                    1491 _GetInterfaceRequest:
+                    0265   1492 	C$USB_Standard_Requests.c$490$1$1 ==.
+                           1493 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:490: if ((gEp0Command.wValue.i) || (gEp0Command.wLength.i != 1) ||
+   0265 E5*02              1494 	mov	a,(_gEp0Command + 0x0002)
+   0267 45*03              1495 	orl	a,((_gEp0Command + 0x0002) + 1)
+   0269 70 14              1496 	jnz	00104$
+   026B 74 01              1497 	mov	a,#0x01
+   026D B5*06 06           1498 	cjne	a,(_gEp0Command + 0x0006),00115$
+   0270 E4                 1499 	clr	a
+   0271 B5*07 02           1500 	cjne	a,((_gEp0Command + 0x0006) + 1),00115$
+   0274 80 02              1501 	sjmp	00116$
+   0276                    1502 00115$:
+   0276 80 07              1503 	sjmp	00104$
+   0278                    1504 00116$:
+                    0278   1505 	C$USB_Standard_Requests.c$491$1$1 ==.
+                           1506 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:491: (gDeviceStatus.bDevState != DEV_CONFIG))
+   0278 74 02              1507 	mov	a,#0x02
+   027A B5*01 02           1508 	cjne	a,(_gDeviceStatus + 0x0001),00117$
+   027D 80 05              1509 	sjmp	00105$
+   027F                    1510 00117$:
+   027F                    1511 00104$:
+                    027F   1512 	C$USB_Standard_Requests.c$493$2$2 ==.
+                           1513 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:493: bEpState = EP_ERROR;
+   027F 75*00 02           1514 	mov	_bEpState,#0x02
+   0282 80 29              1515 	sjmp	00106$
+   0284                    1516 00105$:
+                    0284   1517 	C$USB_Standard_Requests.c$499$2$3 ==.
+                           1518 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:499: if (gEp0Command.wIndex.i > gDeviceStatus.bNumInterf - 1)
+   0284 AA*05              1519 	mov	r2,(_gDeviceStatus + 0x0005)
+   0286 7B 00              1520 	mov	r3,#0x00
+   0288 1A                 1521 	dec	r2
+   0289 BA FF 01           1522 	cjne	r2,#0xff,00118$
+   028C 1B                 1523 	dec	r3
+   028D                    1524 00118$:
+   028D C3                 1525 	clr	c
+   028E EA                 1526 	mov	a,r2
+   028F 95*04              1527 	subb	a,(_gEp0Command + 0x0004)
+   0291 EB                 1528 	mov	a,r3
+   0292 95*05              1529 	subb	a,((_gEp0Command + 0x0004) + 1)
+   0294 50 05              1530 	jnc	00102$
+                    0296   1531 	C$USB_Standard_Requests.c$500$2$3 ==.
+                           1532 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:500: bEpState = EP_ERROR;
+   0296 75*00 02           1533 	mov	_bEpState,#0x02
+   0299 80 12              1534 	sjmp	00106$
+   029B                    1535 00102$:
+                    029B   1536 	C$USB_Standard_Requests.c$504$3$4 ==.
+                           1537 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:504: gEp0Status.pData = (void *)&gDeviceStatus.IfStatus[0].bCurrentAlt;
+   029B 75*06r0B           1538 	mov	(_gEp0Status + 0x0006),#(_gDeviceStatus + 0x000b)
+   029E 75*07s00           1539 	mov	((_gEp0Status + 0x0006) + 1),#((_gDeviceStatus + 0x000b) >> 8)
+   02A1 75*08 40           1540 	mov	((_gEp0Status + 0x0006) + 2),#0x40
+                    02A4   1541 	C$USB_Standard_Requests.c$507$3$4 ==.
+                           1542 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:507: gEp0Status.uNumBytes = 1;
+   02A4 75*01 01           1543 	mov	(_gEp0Status + 0x0001),#0x01
+   02A7 75*02 00           1544 	mov	((_gEp0Status + 0x0001) + 1),#0x00
+                    02AA   1545 	C$USB_Standard_Requests.c$508$3$4 ==.
+                           1546 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:508: bEpState = EP_TX;
+   02AA 75*00 01           1547 	mov	_bEpState,#0x01
+   02AD                    1548 00106$:
+                    02AD   1549 	C$USB_Standard_Requests.c$511$1$1 ==.
+                           1550 ;	C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\USB_Standard_Requests.c:511: gEp0Status.bEpState = bEpState;
+   02AD 85*00*05           1551 	mov	(_gEp0Status + 0x0005),_bEpState
+                    02B0   1552 	C$USB_Standard_Requests.c$512$1$1 ==.
+                    02B0   1553 	XG$GetInterfaceRequest$0$0 ==.
+   02B0 22                 1554 	ret
+                           1555 	.area CSEG    (CODE)
+                           1556 	.area CONST   (CODE)
+                           1557 	.area XINIT   (CODE)
+                           1558 	.area CABS    (ABS,CODE)

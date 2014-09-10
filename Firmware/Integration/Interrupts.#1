@@ -1,0 +1,177 @@
+//-----------------------------------------------------------------------------
+// Interrupts.c
+//-----------------------------------------------------------------------------
+// Copyright (C) RDH2 Science, LLC
+// http://www.rdh2.com
+//
+// Interrupts.c contains the interrupt service routines (ISR)
+// that handle the operation of the potentiostat.
+//
+// Target:         C8051F32x
+// Tool chain:     Keil compiler
+// Command Line:   None
+//
+// Release 1.0 / Not Released
+//    -Initial Revision
+
+//-----------------------------------------------------------------------------
+// Includes
+//-----------------------------------------------------------------------------
+#include <compiler_defs.h>
+#include <C8051F320_defs.h>
+#include "UsbIO.h"
+#include "Registers.h"
+
+
+//-----------------------------------------------------------------------------
+// Extern Global Variables
+//-----------------------------------------------------------------------------
+extern U8 dacWrite;
+extern U8 adcWrite;
+extern U8 bytesWritten;
+extern U8 adcHigh;
+extern U8 adcLow;
+extern U16 delay;
+
+//-----------------------------------------------------------------------------
+// Interrupt Prototypes
+//-----------------------------------------------------------------------------
+INTERRUPT_PROTO(SPI_ISR, INTERRUPT_SPI0);
+INTERRUPT_PROTO(USB_ISR, INTERRUPT_USB0);
+
+
+//-----------------------------------------------------------------------------
+// SPI_ISR
+//-----------------------------------------------------------------------------
+//
+// Return Value: none
+// Parameters:   none
+//
+// The Interrupt Service Routine (ISR) is used when the SPI has
+// transmitted a byte to a slave device.  The interrupt is called
+// when something associated with the SPI has occurred.
+//
+//-----------------------------------------------------------------------------
+INTERRUPT(SPI_ISR, INTERRUPT_SPI0)
+{
+	// Interrupt flag, 4 possibilities (p. 199)
+	//	0x80 = TX complete, receive byte ready to readk
+	//	0x40 = write collision, when SPI0DAT is written prior to last TX
+	//	0x20 = mode fault, NSS is pulled low during multi-master mode
+	//	0x10 = RX overrun, received a byte before last one was read (slave mode)
+
+	// Determine what caused the interrupt by checking
+	// the SPI0CN flags:
+	// TX complete, byte ready to read
+	if ((SPI0CN & 0x80) == 0x80)		
+	{
+		// Clear the interrupt flag
+		SPIF = 0;
+
+		// If the ADC is being addressed, save the 
+		// data in SPI0DAT to the global variables
+		if (adcWrite > 0)
+		{
+			if (bytesWritten == 0)
+			{
+				adcHigh = SPI0DAT;
+			}
+			else if (bytesWritten == 1)
+			{
+				adcLow = SPI0DAT;
+			}
+
+			// Increment the global variable so that the
+			// next byte can be transmitted
+			bytesWritten++;
+		}
+
+		// If the DAC is being addressed, just increment
+		// the global variable so that the next byte can
+		// be transmitted
+		else if (dacWrite > 0)
+		{
+			bytesWritten++;
+		}
+
+		// Otherwise, an error occurred, so set the
+		// ERRORPIN value to high
+		else
+		{
+			ERRORPIN = 1;
+		}
+	}
+
+	// Clear other flags if they occurred:
+	// Write collision
+	if ((SPI0CN & 0x40) == 0x40)
+	{
+		WCOL = 0;
+	}
+
+	// Mode fault
+	if ((SPI0CN & 0x20) == 0x20)
+	{
+		MODF = 0;
+	}
+
+	// Receive overrun
+	if ((SPI0CN & 0x10) == 0x10)
+	{
+		RXOVRN = 0;
+	}
+}
+
+
+//-----------------------------------------------------------------------------
+// USB_ISR
+//-----------------------------------------------------------------------------
+//
+// Return Value: none
+// Parameters:   none
+//
+// The Interrupt Service Routine (ISR) is used when the USB has
+// transmitted or received data from the computer.
+//
+//-----------------------------------------------------------------------------
+INTERRUPT(USB_ISR, INTERRUPT_USB0)
+{	
+	// Local variables
+	U8 bCommon = 0;
+	U8 bIn = 0;
+	U8 bOut = 0;
+
+	// Read all of the interrupt registers.  This 
+	// read also clears the register.
+	bCommon = ReadUSBControlByte(CMINT);
+	bIn = ReadUSBControlByte(IN1INT);
+	bOut = ReadUSBControlByte(OUT1INT);
+
+	// Handle the RESET Interrupt
+	if (bCommon & rbRSTINT)
+	{
+		UsbReset();
+	}
+
+	// Handle a SETUP packet received or packet 
+	// transmitted if Endpoint 0 is in transimt 
+	// mode
+	if (bIn & rbEP0)
+	{
+		HandleControl_2();
+	}
+
+	// Handle Endpoint 1 in packet sent and put the 
+	// new data on the Endpoint 1 FIFO
+	if (bIn & rbIN1)
+	{
+		HandleIn1();
+	}
+
+	// Handle Endpoint 2 out packet received and 
+	// take the data off the Endpoint 1 FIFO
+	if (bOut & rbOUT2)
+	{
+		HandleOut2();
+	}
+}

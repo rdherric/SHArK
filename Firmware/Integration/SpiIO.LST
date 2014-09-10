@@ -1,0 +1,344 @@
+C51 COMPILER V8.18   SPIIO                                                                 01/09/2011 12:30:01 PAGE 1   
+
+
+C51 COMPILER V8.18, COMPILATION OF MODULE SPIIO
+OBJECT MODULE PLACED IN SpiIO.OBJ
+COMPILER INVOKED BY: C:\SiLabs\MCU\IDEfiles\C51\BIN\C51.exe SpiIO.c DB OE BR INCDIR(C:\SiLabs\MCU\Inc)
+
+line level    source
+
+   1          //-----------------------------------------------------------------------------
+   2          // SpiIO.h
+   3          //-----------------------------------------------------------------------------
+   4          // Copyright (C) RDH2 Science, LLC
+   5          // http://www.rdh2.com
+   6          //
+   7          // ChipIO.c contains the functions used to input and output
+   8          // data from the SPI slave chips.
+   9          //
+  10          // Target:         C8051F32x
+  11          // Tool chain:     Keil compiler
+  12          // Command Line:   None
+  13          //
+  14          // Release 1.0 / Not Released
+  15          //    -Initial Revision
+  16          
+  17          
+  18          //-----------------------------------------------------------------------------
+  19          // Includes
+  20          //-----------------------------------------------------------------------------
+  21          #include <compiler_defs.h>
+  22          #include <C8051F320_defs.h>
+  23          #include "SpiIO.h"
+  24          #include "Registers.h"
+  25          
+  26          
+  27          //-----------------------------------------------------------------------------
+  28          // Extern Global Variables
+  29          //-----------------------------------------------------------------------------
+  30          extern U8 dacWrite;
+  31          extern U8 adcWrite;
+  32          extern U8 bytesWritten;
+  33          extern U16 delay;
+  34          
+  35          
+  36          //-----------------------------------------------------------------------------
+  37          // WriteDataToDAC
+  38          //-----------------------------------------------------------------------------
+  39          //
+  40          // Return Value: none
+  41          // Parameters:   char byte1
+  42          //                               char byte2
+  43          //                               char byte3
+  44          //
+  45          // Sets up the DAC for communication and sends three
+  46          // bytes to it.
+  47          //
+  48          //-----------------------------------------------------------------------------
+  49          void WriteDataToDAC(U8 byte1, U8 byte2, U8 byte3)
+  50          {
+  51   1              // Configure the SPI for DAC communication
+  52   1              SetSPI0CFG(0x50);
+  53   1               
+  54   1              // Select the DAC for SPI communication
+  55   1              NDACCS = 0;
+C51 COMPILER V8.18   SPIIO                                                                 01/09/2011 12:30:01 PAGE 2   
+
+  56   1      
+  57   1              //Set the flags for DAC communication
+  58   1              dacWrite = 1;
+  59   1      
+  60   1              // Send the bytes to the SPI
+  61   1              ResetByteCounter();
+  62   1              WriteByteToSPI(byte1, 1);
+  63   1              WriteByteToSPI(byte2, 2);
+  64   1              WriteByteToSPI(byte3, 3);
+  65   1      
+  66   1              //Reset the flags for DAC communication
+  67   1              dacWrite = 0;
+  68   1      
+  69   1              // Deselect the DAC for SPI communication
+  70   1              NDACCS = 1;
+  71   1      }
+  72          
+  73          
+  74          //-----------------------------------------------------------------------------
+  75          // WriteDataToADC
+  76          //-----------------------------------------------------------------------------
+  77          //
+  78          // Return Value: none
+  79          // Parameters:   U8 byte1
+  80          //                               U8 byte2
+  81          //
+  82          // Sets up the ADC for communication and sends two
+  83          // bytes to it.
+  84          //
+  85          //-----------------------------------------------------------------------------
+  86          void WriteDataToADC(U8 byte1, U8 byte2)
+  87          {
+  88   1              // Configure the SPI for ADC communication
+  89   1              SetSPI0CFG(0x40);
+  90   1      
+  91   1              // Select the ADC for SPI communication
+  92   1              NADCCS = 0;
+  93   1      
+  94   1              // Delay for 12 ms for the ADC to turn on
+  95   1              delay = 0;
+  96   1              while (delay < 1000)
+  97   1                      { delay++; }
+  98   1      
+  99   1              //Set the flag for ADC communication
+ 100   1              adcWrite = 1;
+ 101   1      
+ 102   1              //Send the bytes to the ADC
+ 103   1              ResetByteCounter();
+ 104   1              WriteByteToSPI(byte1, 1);
+ 105   1              WriteByteToSPI(byte2, 2);
+ 106   1      
+ 107   1              //Reset the ADC communication flags
+ 108   1              adcWrite = 0;
+ 109   1      
+ 110   1              // Deselect the ADC for SPI communication
+ 111   1              NADCCS = 1;
+ 112   1      }
+ 113          
+ 114          
+ 115          //-----------------------------------------------------------------------------
+ 116          // ResetByteCounter
+ 117          //-----------------------------------------------------------------------------
+C51 COMPILER V8.18   SPIIO                                                                 01/09/2011 12:30:01 PAGE 3   
+
+ 118          //
+ 119          // Return Value: none
+ 120          // Parameters:   none
+ 121          //
+ 122          // Centralizes the reset of the bytesWritten counter.
+ 123          // 
+ 124          //-----------------------------------------------------------------------------
+ 125          void ResetByteCounter(void)
+ 126          {
+ 127   1              // Reset the BytesWritten global variable
+ 128   1              bytesWritten = 0;
+ 129   1      }
+ 130          
+ 131          
+ 132          //-----------------------------------------------------------------------------
+ 133          // WriteByteToSPI
+ 134          //-----------------------------------------------------------------------------
+ 135          //
+ 136          // Return Value: none
+ 137          // Parameters:   byte input
+ 138          //
+ 139          // Writes a byte to the SPI0DAT register and waits for
+ 140          // the interrupt to return.
+ 141          // 
+ 142          //-----------------------------------------------------------------------------
+ 143          void WriteByteToSPI(U8 input, U8 byteCount)
+ 144          {
+ 145   1              //Write the byte and wait for the interrupt
+ 146   1              SPI0DAT = input;
+ 147   1              while (bytesWritten != byteCount) { NOP(); }
+ 148   1      }
+ 149          
+ 150          
+ 151          //-----------------------------------------------------------------------------
+ 152          // SetSPI0CFG
+ 153          //-----------------------------------------------------------------------------
+ 154          //
+ 155          // Return Value: none
+ 156          // Parameters:   byte config
+ 157          //
+ 158          // Sets up the CFG part of the SPI, including disabling
+ 159          // and re-enabling the SPI.
+ 160          // 
+ 161          //-----------------------------------------------------------------------------
+ 162          void SetSPI0CFG(U8 config)
+ 163          {
+ 164   1              // Turn off the SPI to configure it
+ 165   1              SPI0CN = 0x00;
+ 166   1      
+ 167   1              // Set the clock polarity and phase for the DAC
+ 168   1              //  7 SPIBSY    R
+ 169   1              //  6 MSTEN             R/W
+ 170   1              //  5 CKPHA             R/W
+ 171   1              //  4 CKPOL             R/W
+ 172   1              //  3 SLVSEL    R
+ 173   1              //  2 NSSIN             R
+ 174   1              //  1 SRMT              R
+ 175   1              //  0 RXBMT             R
+ 176   1              SPI0CFG = config;
+ 177   1      
+ 178   1              // Turn the SPI back on now that it is configured
+ 179   1              //  7 SPIF              R/W
+C51 COMPILER V8.18   SPIIO                                                                 01/09/2011 12:30:01 PAGE 4   
+
+ 180   1              //  6 WCOL              R/W
+ 181   1              //  5 MODF              R/W
+ 182   1              //  4 RXOVRN    R/W
+ 183   1              //  3 NSSMD1    R/W
+ 184   1              //  2 NSSMD0    R/W
+ 185   1              //  1 TXBMT             R
+ 186   1              //  0 SPIEN             R/W
+ 187   1              SPI0CN = 0x01;                                  
+ 188   1      }
+ 189          
+ 190          
+ 191          //-----------------------------------------------------------------------------
+ 192          // InitSPI
+ 193          //-----------------------------------------------------------------------------
+ 194          //
+ 195          // Return Value: none
+ 196          // Parameters:   none
+ 197          //
+ 198          // Initialize SPI.  The initialization sets parameters to talk to the DAC
+ 199          // (AD5754), so some things are changed later to talk to the ADC and RAM.
+ 200          //
+ 201          //-----------------------------------------------------------------------------
+ 202          void InitSPI(void)
+ 203          {
+ 204   1              // Configure the SPI 
+ 205   1              SetSPI0CFG(0x50);
+ 206   1      
+ 207   1              // SPI clock rate register: SPI0CKR
+ 208   1              //  7 SCR7              R/W
+ 209   1              //  ...
+ 210   1              //  0 SCR0              R/W
+ 211   1              // The SPI clock is a divided version of SYSCLK = 24 MHz:
+ 212   1              //                SYSCLK
+ 213   1              //  f_SCK = ------------------
+ 214   1              //           2 x (SPI0CKR + 1)
+ 215   1              // So f_SCK = 12 MHz (for the DAC and RAM) is SPI0CKR = 0x00
+ 216   1              // and f_SCK = 2 MHz (for the ADC) is SPI0CKR = 0x05
+ 217   1              SPI0CKR = 0x05;                         // 0x00 = 0000 0101
+ 218   1      
+ 219   1              // Enable SPI interrupts, SFR IE, bit 6
+ 220   1              ESPI0 = 1;
+ 221   1      }
+ 222          
+ 223          
+ 224          //-----------------------------------------------------------------------------
+ 225          // InitDAC
+ 226          //-----------------------------------------------------------------------------
+ 227          //
+ 228          // Return Value: none
+ 229          // Parameters:   none
+ 230          //
+ 231          // Initialize DAC.  Assumes SPI_Init was just called and CKPOL and CKPHA are set
+ 232          // correctly.
+ 233          //
+ 234          //-----------------------------------------------------------------------------
+ 235          void InitDAC(void)
+ 236          {
+ 237   1              ////
+ 238   1              //// SELECT OUTPUT RANGE
+ 239   1              ////
+ 240   1              // 3 bytes to send
+ 241   1              //      23 = R/W = 0 for write
+C51 COMPILER V8.18   SPIIO                                                                 01/09/2011 12:30:01 PAGE 5   
+
+ 242   1              //      22 = Not used = 0 must be zero
+ 243   1              //      21-19 = Reg2-Reg0 = 001
+ 244   1              //      18-16 = A2-A0 = DAC address, A = 000, B = 001, C = 010, D = 011
+ 245   1              //      15-03 = Don't care
+ 246   1              //      02-00 = 100 for +/- 10 V
+ 247   1              // DAC A: send 0000 1000 0000 0000 0000 0100
+ 248   1              WriteDataToDAC(0x08, 0x00, 0x04);
+ 249   1      
+ 250   1              ////
+ 251   1              //// CONTROL REGISTER
+ 252   1              ////
+ 253   1              // 3 bytes to send
+ 254   1              //      23 = R/W = 0 for write
+ 255   1              //      22 = Not used = 0 must be zero
+ 256   1              //      21-19 = Reg2-Reg0 = 011
+ 257   1              //      18-16 = A2-A0 = command, = 001 for various enables/disables
+ 258   1              //      15-04 = Don't care
+ 259   1              //      03 = thermal shutdown enable = 1 for enable
+ 260   1              //      02 = current clamp enable = 1 for enable
+ 261   1              //      01 = clear select = 1 for full range
+ 262   1              //      00 = serial data out disable = 0 for enable
+ 263   1              // DAC A: send 0001 1001 0000 0000 0000 1110
+ 264   1              WriteDataToDAC(0x19, 0x00, 0x0E);
+ 265   1      
+ 266   1              ////
+ 267   1              //// POWER CONTROL REGISTER
+ 268   1              ////
+ 269   1              // 3 bytes to send
+ 270   1              //      23 = R/W = 0 for write
+ 271   1              //      22 = Not used = 0 must be zero
+ 272   1              //      21-19 = Reg2-Reg0 = 010
+ 273   1              //      18-16 = A2-A0 = unused?, = 000 (Table 26, p. 26)
+ 274   1              //      15-11 = Don't care
+ 275   1              //      10-07 = Overcurrent alert (read only) for DACs A-D, respectively
+ 276   1              //      06 = reserved bit, 0
+ 277   1              //      05 = thermal shutdown alert (read only)
+ 278   1              //      04 = reserved bit, 0
+ 279   1              //      03-00 = power up for DACs D-A, respectively. 1 for normal operating
+ 280   1              //                      mode. 0 for power-down mode.  MCU sets to 0 if clamp disabled
+ 281   1              //                      and overcurrent detected.
+ 282   1              // DAC A: send 0001 0000 0000 0000 0000 1111
+ 283   1              WriteDataToDAC(0x10, 0x00, 0x0F);
+ 284   1      }
+ 285          
+ 286          
+ 287          //-----------------------------------------------------------------------------
+ 288          // InitADC
+ 289          //-----------------------------------------------------------------------------
+ 290          //
+ 291          // Return Value: none
+ 292          // Parameters:   none
+ 293          //
+ 294          // Initialize ADC.  Must reset the SPI timing, clock polarization, and clock
+ 295          // phase.
+ 296          //
+ 297          //-----------------------------------------------------------------------------
+ 298          void InitADC(void)
+ 299          {
+ 300   1              ////
+ 301   1              //// Write configuration to ADC
+ 302   1              ////
+ 303   1              // 2 bytes to send
+C51 COMPILER V8.18   SPIIO                                                                 01/09/2011 12:30:01 PAGE 6   
+
+ 304   1              //      15 = EN1 = 1 to write data
+ 305   1              //      14 = EN2 = 0 to write data
+ 306   1              //      13 = SPD = 1 for 1 kHz conversion rate (0 would be for 250 Hz)
+ 307   1              //      12 = SLP = 0 for NAP, SLEEP disabled (12 ms to wake from SLEEP)
+ 308   1              //      11-00 = Don't care
+ 309   1              // ADC: send 1010 0000 0000 0000
+ 310   1              WriteDataToADC(0xA0, 0x00);
+ 311   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    173    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       5
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

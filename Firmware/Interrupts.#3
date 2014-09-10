@@ -1,0 +1,782 @@
+//-----------------------------------------------------------------------------
+// Interrupts.c
+//-----------------------------------------------------------------------------
+//
+// Program Description:
+//
+// Source file for USB firmware. Includes top level ISR with Setup,
+// and Endpoint data handlers.  Also includes routine for USB suspend,
+// reset, and procedural stall.
+//
+// Target:         C8051F32x
+// Tool chain:     Keil C51 7.50 / Keil EVAL C51
+//                 Silicon Laboratories IDE version 2.6
+// Project Name:   SHArK
+
+//-----------------------------------------------------------------------------
+// Includes
+//-----------------------------------------------------------------------------
+
+#include <c8051F320.h>
+#include "USBRegister.h"
+#include "Main.h"
+#include "USBDescriptor.h"
+
+//-----------------------------------------------------------------------------
+// Global Externs
+//-----------------------------------------------------------------------------
+
+extern int Writing_to_DAC;
+extern int Writing_to_ADC;
+extern int SPI_DAC_Bytes;
+extern int SPI_ADC_Bytes;
+extern int latest_ADC_HighByte;
+extern int latest_ADC_LowByte;
+
+//-----------------------------------------------------------------------------
+// Global Variables
+//-----------------------------------------------------------------------------
+
+BYTE USB_State;                        // Holds the current USB State
+                                       // def. in F32x_USB_Main.h
+
+setup_buffer Setup;                    // Buffer for current device request
+
+unsigned int DataSize;                 // Size of data to return
+unsigned int DataSent;                 // Amount of data sent so far
+BYTE* DataPtr;                         // Pointer to data to return
+
+// Holds the status for each endpoint
+BYTE Ep_Status[3] = {EP_IDLE, EP_IDLE, EP_IDLE};
+
+
+//-----------------------------------------------------------------------------
+// Interrupt Service Routines
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+// Usb_ISR
+//-----------------------------------------------------------------------------
+//
+// Called after any USB type interrupt, this handler determines which type
+// of interrupt occurred, and calls the specific routine to handle it.
+//
+//-----------------------------------------------------------------------------
+void Usb_ISR(void) interrupt 8         // Top-level USB ISR
+{
+   BYTE bCommon, bIn, bOut;
+   POLL_READ_BYTE(CMINT, bCommon);     // Read all interrupt registers
+   POLL_READ_BYTE(IN1INT, bIn);        // this read also clears the register
+   POLL_READ_BYTE(OUT1INT, bOut);
+   {
+      if (bCommon & rbRSUINT)          // Handle Resume interrupt
+      {
+         Usb_Resume();
+      }
+      if (bCommon & rbRSTINT)          // Handle Reset interrupt
+      {
+         Usb_Reset();
+      }
+      if (bIn & rbEP0)                 // Handle Setup packet received
+      {                                // or packet transmitted if Endpoint 0
+         Handle_Setup();               // is transmit mode
+      }
+      if (bIn & rbIN1)                 // Handle In Packet sent, put new data
+      {                                // on endpoint 1 fifo
+         Handle_In1();
+      }
+      if (bOut & rbOUT2)               // Handle Out packet received, take data
+      {                                // off endpoint 2 fifo
+         Handle_Out2();
+      }
+      if (bCommon & rbSUSINT)          // Handle Suspend interrupt
+      {
+         Usb_Suspend();
+      }
+   }
+}
+
+
+//-----------------------------------------------------------------------------
+// Usb_ISR
+//-----------------------------------------------------------------------------
+//
+// Called after any USB type interrupt, this handler determines which type
+// of interrupt occurred, and calls the specific routine to handle it.
+//
+//-----------------------------------------------------------------------------
+void SPI_ISR() interrupt 6
+{
+	//Holder for received byte
+	int RXbyte;
+
+	// Interrupt flag, 4 possibilities (p. 199)
+	//	0x80 = TX complete, receive byte ready to read
+	//	0x40 = write collision, when SPI0DAT is written prior to last TX
+	//	0x20 = mode fault, NSS is pulled low during multi-master mode
+	//	0x10 = RX overrun, received a byte before last one was read (slave mode)
+
+	// Determine what caused the interrupt
+	if ((SPI0CN & 0x80) == 0x80)		// TX complete, byte ready to read
+	{
+		SPIF = 0;			// clear interrupt flag
+
+		RXbyte = SPI0DAT;	// This could be a byte from the DAC, ADC, or RAM.
+		if (Writing_to_ADC > 0)			// ADC
+		{
+			SPI_ADC_Bytes++;			// Do not zero in this ISR
+			if (SPI_ADC_Bytes == 0)
+				latest_ADC_HighByte = RXbyte;
+			else
+				latest_ADC_LowByte = RXbyte;
+		}
+		else if (Writing_to_DAC > 0)	// DAC
+			SPI_DAC_Bytes++;			// Do not zero in this ISR
+		else							// ERROR
+			POLL_WRITE_BYTE(bError, 1);
+	}
+	if ((SPI0CN & 0x40) == 0x40)	// write collision
+	{
+		WCOL = 0;		// clear interrupt flag
+	}
+	if ((SPI0CN & 0x20) == 0x20)	// mode fault
+	{
+		MODF = 0;		// clear interrupt flag
+	}
+	if ((SPI0CN & 0x10) == 0x10)	// RX overrun
+	{
+		RXOVRN = 0;		// clear interrupt flag
+	}
+}
+
+
+//-----------------------------------------------------------------------------
+// Support Routines for ISR
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+// Usb_Reset
+//-----------------------------------------------------------------------------
+//
+// Return Value : None
+// Parameters   : None
+//
+// - Set state to default
+// - Clear Usb Inhibit bit
+//
+//-----------------------------------------------------------------------------
+void Usb_Reset(void)
+{
+   USB_State = DEV_DEFAULT;            // Set device state to default
+
+   POLL_WRITE_BYTE(POWER, 0x01);       // Clear usb inhibit bit to enable USB
+                                       // suspend detection
+
+   Ep_Status[0] = EP_IDLE;             // Set default Endpoint Status
+   Ep_Status[1] = EP_HALT;
+   Ep_Status[2] = EP_HALT;
+}
+
+
+//-----------------------------------------------------------------------------
+// Handle_Setup
+//-----------------------------------------------------------------------------
+//
+// Return Value : None
+// Parameters   : None
+//
+// - Decode Incoming Setup requests
+// - Load data packets on fifo while in transmit mode
+//
+//-----------------------------------------------------------------------------
+
+void Handle_Setup(void)
+{
+   BYTE ControlReg,TempReg;            // Temporary storage for EP control
+                                       // register
+
+   POLL_WRITE_BYTE(INDEX, 0);          // Set Index to Endpoint Zero
+   POLL_READ_BYTE(E0CSR, ControlReg);  // Read control register
+
+   if (Ep_Status[0] == EP_ADDRESS)     // Handle Status Phase of Set Address
+                                       // command
+   {
+      POLL_WRITE_BYTE(FADDR, Setup.wValue.c[LSB]);
+      Ep_Status[0] = EP_IDLE;
+   }
+
+   if (ControlReg & rbSTSTL)           // If last packet was a sent stall, reset
+   {                                   // STSTL bit and return EP0 to idle state
+      POLL_WRITE_BYTE(E0CSR, 0);
+      Ep_Status[0] = EP_IDLE;
+      return;
+   }
+
+   if (ControlReg & rbSUEND)           // If last setup transaction was ended
+   {                                   // prematurely then set
+      POLL_WRITE_BYTE(E0CSR, rbDATAEND);
+      POLL_WRITE_BYTE(E0CSR, rbSSUEND); // Serviced Setup End bit and return EP0
+      Ep_Status[0] = EP_IDLE;          // to idle state
+   }
+
+   if (Ep_Status[0] == EP_IDLE)        // If Endpoint 0 is in idle mode
+   {
+      if (ControlReg & rbOPRDY)        // Make sure that EP 0 has an Out Packet ready from host
+      {                                // although if EP0 is idle, this should always be the case
+         Fifo_Read(FIFO_EP0, 8, (BYTE *)&Setup);
+                                        // Get Setup Packet off of Fifo, it is currently Big-Endian
+
+                                       // Compiler Specific - these next three statements swap the
+                                       // bytes of the setup packet words to Big Endian so they
+                                       // can be compared to other 16-bit values elsewhere properly
+         Setup.wValue.i = Setup.wValue.c[MSB] + 256*Setup.wValue.c[LSB];
+         Setup.wIndex.i = Setup.wIndex.c[MSB] + 256*Setup.wIndex.c[LSB];
+         Setup.wLength.i = Setup.wLength.c[MSB] + 256*Setup.wLength.c[LSB];
+
+
+         switch(Setup.bRequest)        // Call correct subroutine to handle each kind of
+         {                             // standard request
+            case GET_STATUS:
+               Get_Status();
+               break;
+            case CLEAR_FEATURE:
+               Clear_Feature();
+               break;
+            case SET_FEATURE:
+               Set_Feature();
+               break;
+            case SET_ADDRESS:
+               Set_Address();
+               break;
+            case GET_DESCRIPTOR:
+               Get_Descriptor();
+               break;
+            case GET_CONFIGURATION:
+               Get_Configuration();
+               break;
+            case SET_CONFIGURATION:
+               Set_Configuration();
+               break;
+            case GET_INTERFACE:
+               Get_Interface();
+               break;
+            case SET_INTERFACE:
+               Set_Interface();
+               break;
+            default:
+               Force_Stall();          // Send stall to host if invalid request
+               break;
+         }
+      }
+   }
+
+   if (Ep_Status[0] == EP_TX)          // See if the endpoint has data to transmit to host
+   {
+      if (!(ControlReg & rbINPRDY))    // Make sure you don't overwrite last packet
+      {
+                                       // Endpoint 0 transmit mode
+         
+         POLL_READ_BYTE(E0CSR, ControlReg);
+                                       // Read control register
+
+         if ((!(ControlReg & rbSUEND)) || (!(ControlReg & rbOPRDY)))
+                                       // Check to see if Setup End or Out Packet received, if so
+                                       // do not put any new data on FIFO
+         {
+            TempReg = rbINPRDY;        // Add In Packet ready flag to E0CSR bitmask
+
+                                       // Break Data into multiple packets if larger than Max Packet
+            if (DataSize >= EP0_PACKET_SIZE)
+            {
+               Fifo_Write(FIFO_EP0, EP0_PACKET_SIZE, (BYTE *)DataPtr);// Put Data on Fifo
+               DataPtr  += EP0_PACKET_SIZE;                           // Advance data pointer
+               DataSize -= EP0_PACKET_SIZE;                           // Decrement data size
+               DataSent += EP0_PACKET_SIZE;                           // Increment data sent counter
+            }
+            else                       // If data is less than Max Packet size or zero
+            {
+               Fifo_Write(FIFO_EP0, DataSize, (BYTE *)DataPtr);       // Put Data on Fifo
+               TempReg |= rbDATAEND;                                  // Add Data End bit to bitmask
+               Ep_Status[0] = EP_IDLE;                                // Return EP 0 to idle state
+            }
+            if (DataSent == Setup.wLength.i)
+                                        // This case exists when the host requests an even multiple of
+                                        // your endpoint zero max packet size, and you need to exit
+                                        // transmit mode without sending a zero length packet
+            {
+               TempReg |= rbDATAEND;    // Add Data End bit to mask
+               Ep_Status[0] = EP_IDLE;  // and return Endpoint 0 to an idle state
+            }
+            POLL_WRITE_BYTE(E0CSR, TempReg);                          // Write mask to E0CSR
+         }
+      }
+   }
+}
+
+
+//-----------------------------------------------------------------------------
+// Handle_In1
+//-----------------------------------------------------------------------------
+//
+// Return Value : None
+// Parameters   : None
+//
+// This routine loads the current value from In_Packet on the Endpoint 1 fifo,
+// after  an interrupt is received from the last packet being transmitted
+//
+//-----------------------------------------------------------------------------
+void Handle_In1()
+{
+   BYTE ControlReg;
+
+   POLL_WRITE_BYTE(INDEX, 1);           // Set index to endpoint 1 registers
+   POLL_READ_BYTE(EINCSR1, ControlReg); // Read contol register for EP 1
+
+   if (Ep_Status[1] == EP_HALT)         // If endpoint is currently halted, 
+                                        // send a stall
+   {
+      POLL_WRITE_BYTE(EINCSR1, rbInSDSTL);
+   }
+
+   else                                 // Otherwise send last updated 
+                                        // data to host
+   {
+      if (ControlReg & rbInSTSTL)       // Clear sent stall if last packet
+	                                    // returned a stall
+      {
+         POLL_WRITE_BYTE(EINCSR1, rbInCLRDT);
+      }
+
+      if (ControlReg & rbInUNDRUN)      // Clear underrun bit if it was set
+      {
+         POLL_WRITE_BYTE(EINCSR1, 0x00);
+      }
+
+	  //Call the Endpoint1 function to do the
+	  //actual work
+	  Endpoint1();
+   }                                    
+}
+
+
+//-----------------------------------------------------------------------------
+// Endpoint1
+//-----------------------------------------------------------------------------
+//
+// Return Value : None
+// Parameters   : None
+//
+// Reads the values from the FIFO to get the operation
+// code and parameters and performs the operation. 
+//-----------------------------------------------------------------------------
+void Endpoint1()
+{
+	//Declare local variables
+	BYTE bEP = 0x01;				//Endpoint 1 local variable
+	unsigned int uNumBytes = 1;		//Number of bytes to read
+	BYTE bOp = 0x00;				//Operation to perform
+
+	//Read the operation code from the FIFO
+	Fifo_Read(bEP, uNumBytes, &bOp);
+
+	//Switch on the operation code
+	switch (bOp)
+	{
+		case OP_SET_VOLTAGE:
+			SetVoltage();
+			break;
+
+		case OP_SET_LASER:
+			SetLaser();
+			break;
+
+		case OP_PULSE_MOTOR:
+			PulseMotor();
+			break;
+	}
+}
+
+
+//-----------------------------------------------------------------------------
+// SetVoltage
+//-----------------------------------------------------------------------------
+//
+// Return Value : None
+// Parameters   : None
+//
+// Reads the voltage from the FIFO and sets the value
+// on the DAC. 
+//
+// 	POSITIVE voltage at the reference node and a positive current into
+// 	the working node, use a _negative_ voltage at the DAC output:
+// 	Value = 0x10000 - |Voltage| * 3277 - 0x0024
+//   Example: to get +0.1 V at the reference node, output -0.1 V at the DAC
+//   0x10000 - 0.1 * 3277 = 0xFEB8 = 65244
+//
+// 	NEGATIVE voltage at the reference node and a negative current into
+// 	the working node, use a _positive_ voltage at the DAC output:
+// 	Value = Voltage * 3277 - 0x0024
+//   Example: to get -0.1 V at the reference node, output +0.1 V at the DAC
+//   0.1 * 3277 = 0x0148 = 328
+//-----------------------------------------------------------------------------
+void SetVoltage()
+{
+	//Declare local variables
+	BYTE bEP = 0x01;				//Endpoint 1 local variable
+	unsigned int uNumBytes = 2;		//Number of bytes to read
+	BYTE pData[2];					//Voltage to read
+
+	//Read the voltage from the FIFO
+	Fifo_Read(bEP, uNumBytes, pData);
+
+	//If the value is positive, set the bit
+	if ((float)*pData > 0)
+	{
+		POLL_WRITE_BYTE(bPos, 1);
+	}
+	else
+	{
+		POLL_WRITE_BYTE(bPos, 0);
+	}
+
+	//Show that the DAC is being used
+	Writing_to_DAC = 1;
+
+	//Set the voltage on the DAC
+	POLL_WRITE_BYTE(bNotDACCS, 0);	// Select the DAC for SPI communication
+	SPI0DAT = 0x00;					// 0x00 = 0000 0000
+	while(SPI_DAC_Bytes != 1) {}	// wait for SPI to finish sending byte
+	SPI0DAT = pData[0];			// Upper part of byte
+	while(SPI_DAC_Bytes != 2) {}	// wait for SPI to finish sending byte
+	SPI0DAT = pData[1];			// Lower part of byte
+	while(SPI_DAC_Bytes != 3) {}	// wait for SPI to finish sending byte
+	SPI_DAC_Bytes = 0;				// Reset byte TX counter
+	POLL_WRITE_BYTE(bNotDACCS, 1);	// Deselect the DAC for SPI communication
+
+	//Reset the DAC write boolean
+	Writing_to_DAC = 0;
+}
+
+
+//-----------------------------------------------------------------------------
+// SetLaser
+//-----------------------------------------------------------------------------
+//
+// Return Value : None
+// Parameters   : None
+//
+// Reads the boolean from the FIFO and sets the value
+// on the Laser bit. 
+//-----------------------------------------------------------------------------
+void SetLaser()
+{
+	//Declare local variables
+	BYTE bEP = 0x01;				//Endpoint 1 local variable
+	unsigned int uNumBytes = 1;		//Number of bytes to read
+	BYTE bState = 0x00;				//State of the Laser to read
+
+	//Read the state from the FIFO
+	Fifo_Read(bEP, uNumBytes, &bState);
+
+	//Set the bit for the Laser
+	POLL_WRITE_BYTE(bLaser, bState);
+}
+
+
+//-----------------------------------------------------------------------------
+// PulseMotor
+//-----------------------------------------------------------------------------
+//
+// Return Value : None
+// Parameters   : None
+//
+// Reads the motor bit and direction bit from the FIFO 
+// and pulses the motor driver. 
+//-----------------------------------------------------------------------------
+void PulseMotor()
+{
+	//Declare local variables
+	BYTE bEP = 0x01;					//Endpoint 1 local variable
+	unsigned int uNumBytes = 1;			//Number of bytes to read
+	BYTE bMotor = MOTOR_X;				//Motor bit to read
+	BYTE bDir = DIR_FWD;				//Direction bit to read
+	BYTE bMtrStep = bMtr1Step;			//Motor to step
+	BYTE bMtrDir = bMtr1Dir;			//Direction to step
+	unsigned int uDelay = 12500;		//Delay counter
+
+	//Read the Motor code from the FIFO
+	Fifo_Read(bEP, uNumBytes, &bMotor);
+
+	//Read the Direction code from the FIFO
+	Fifo_Read(bEP, uNumBytes, &bDir);
+
+	//Setup the Motor register
+	if (bMotor == MOTOR_Y)
+	{
+		bMtrStep = bMtr2Step;
+		bMtrDir = bMtr2Dir;
+	}
+
+	//Enable the Motor driver
+	POLL_WRITE_BYTE(bMtrDrvrEn, 0x01);
+
+	//Set the Direction bit
+	POLL_WRITE_BYTE(bMtrDir, bDir);
+
+	//Set the motor bit to high
+	POLL_WRITE_BYTE(bMtrStep, 0x01);
+
+	//Wait 500 us
+	while (uDelay--);
+	
+	//Set the motor bit to low
+	POLL_WRITE_BYTE(bMtrStep, 0x00);
+}
+
+
+//-----------------------------------------------------------------------------
+// Handle_Out2
+//-----------------------------------------------------------------------------
+//
+// Return Value : None
+// Parameters   : None
+//
+// Take the received packet from the host off the fifo and put it into
+// the Out_Packet array
+//
+//-----------------------------------------------------------------------------
+void Handle_Out2()
+{
+   BYTE Count = 0;
+   BYTE ControlReg;
+
+   POLL_WRITE_BYTE(INDEX, 2);          // Set index to endpoint 2 registers
+   POLL_READ_BYTE(EOUTCSR1, ControlReg);
+
+   if (Ep_Status[2] == EP_HALT)        // If endpoint is halted, send a stall
+   {
+      POLL_WRITE_BYTE(EOUTCSR1, rbOutSDSTL);
+   }
+
+   else                                // Otherwise read packet from host
+   {
+      if (ControlReg & rbOutSTSTL)     // Clear sent stall bit if last packet 
+                                       // was a stall
+      {
+         POLL_WRITE_BYTE(EOUTCSR1, rbOutCLRDT);
+      }
+
+      POLL_READ_BYTE(EOUTCNTL, Count);
+      if (Count != EP2_PACKET_SIZE)    // If host did not send correct packet 
+	                                   // size, flush buffer
+      {
+         POLL_WRITE_BYTE(EOUTCNTL, rbOutFLUSH);
+      }
+      else                             // Otherwise get the data packet
+      {
+	     Endpoint2();
+      }
+      POLL_WRITE_BYTE(EOUTCSR1, 0);    // Clear Out Packet ready bit
+   }
+}
+
+
+//-----------------------------------------------------------------------------
+// Endpoint2
+//-----------------------------------------------------------------------------
+//
+// Return Value : None
+// Parameters   : None
+//
+// Reads the value from the FIFO to get the OP_READ_CURRENT
+// operation code and returns the current value.
+//-----------------------------------------------------------------------------
+void Endpoint2()
+{
+	//Declare local variables
+	BYTE bEP = 0x02;				//Endpoint 2 local variable
+	unsigned int uNumBytes = 1;		//Number of bytes to read
+	BYTE bOp = 0x00;				//Operation to perform
+
+	//Read the operation code from the FIFO
+	Fifo_Read(bEP, uNumBytes, &bOp);
+
+	//If the operation code is OP_GET_CURRENT,
+	//get the current and write it to the FIFO
+	if (bOp == OP_GET_CURRENT)
+		ReadCurrent();
+}
+
+
+//-----------------------------------------------------------------------------
+// ReadCurrent
+//-----------------------------------------------------------------------------
+//
+// Return Value : None
+// Parameters   : None
+//
+// Reads the value from the FIFO to get the OP_GET_CURRENT
+// operation code and returns the current value.
+//-----------------------------------------------------------------------------
+void ReadCurrent()
+{
+	//Declare local variables
+	BYTE bEP = 0x02;				//Endpoint 2 local variable
+	unsigned int uNumBytes = 2;		//Number of bytes to write
+	BYTE pData[2];					//Data to write to FIFO
+
+	//Get the data from the ADC
+
+	//Write the data to the FIFO
+	Fifo_Write(bEP, uNumBytes, pData);
+}
+
+
+//-----------------------------------------------------------------------------
+// Usb_Suspend
+//-----------------------------------------------------------------------------
+//
+// Return Value : None
+// Parameters   : None
+//
+// Enter suspend mode after suspend signalling is present on the bus
+//
+//-----------------------------------------------------------------------------
+void Usb_Suspend(void)
+{          
+   // Put the device in a low power configuration
+                               
+   P0MDIN  = 0x00;                     // Port 0 configured as analog input
+   P1MDIN  = 0x00;                     // Port 1 configured as analog input
+   P2MDIN  = 0x00;                     // Port 2 configured as analog input
+   P3MDIN  = 0x00;                     // Port 3 configured as analog input
+
+   ADC0CN &= ~0x80;                    // Disable ADC0
+   REF0CN  = 0x00;                     // Disable voltage reference
+
+   OSCICN |= 0x20;                     // Put oscillator 
+
+   // When the device receives a non-idle USB event, it will resume execution
+   // on the instruction that follows OSCICN |= 0x20.  
+
+   // Re-enable everything that was disabled when going into Suspend
+
+   P0MDIN  = 0xFF;                     // Port 0 configured as analog input
+   P1MDIN  = 0x7F;                     // Port 1 pin 7 set as analog input
+   P2MDIN  = 0xFF;                     // Port 2 configured as analog input
+   P3MDIN  = 0xFF;                     // Port 3 configured as analog input
+
+   REF0CN  = 0x0E;                     // Enable voltage reference VREF
+   ADC0CN |= 0x80;                     // Re-enable ADC
+
+}
+
+
+//-----------------------------------------------------------------------------
+// Usb_Resume
+//-----------------------------------------------------------------------------
+//
+// Return Value : None
+// Parameters   : None
+//
+// Resume normal USB operation
+//
+//-----------------------------------------------------------------------------
+void Usb_Resume(void)
+{
+   volatile int k;
+
+   k++;
+
+   // Add code for resume
+}
+
+
+//-----------------------------------------------------------------------------
+// Fifo_Read
+//-----------------------------------------------------------------------------
+//
+// Return Value : None
+// Parameters   :
+//                1) BYTE addr : target address
+//                2) unsigned int uNumBytes : number of bytes to unload
+//                3) BYTE * pData : read data destination
+//
+// Read from the selected endpoint FIFO
+//
+//-----------------------------------------------------------------------------
+void Fifo_Read(BYTE addr, unsigned int uNumBytes, BYTE * pData)
+{
+   int i;
+
+   if (uNumBytes)                         // Check if >0 bytes requested,
+   {
+      USB0ADR = (addr);                   // Set address
+      USB0ADR |= 0xC0;                    // Set auto-read and initiate
+                                          // first read
+
+      // Unload <NumBytes> from the selected FIFO
+      for(i=0;i<uNumBytes-1;i++)
+      {
+         while(USB0ADR & 0x80);           // Wait for BUSY->'0' (data ready)
+         pData[i] = USB0DAT;              // Copy data byte
+      }
+
+      USB0ADR = 0;                           // Clear auto-read
+
+      while(USB0ADR & 0x80);               // Wait for BUSY->'0' (data ready)
+      pData[i] = USB0DAT;                  // Copy data byte
+   }
+}
+
+
+//-----------------------------------------------------------------------------
+// Fifo_Write
+//-----------------------------------------------------------------------------
+//
+// Return Value : None
+// Parameters   :
+//                1) BYTE addr : target address
+//                2) unsigned int uNumBytes : number of bytes to unload
+//                3) BYTE * pData : location of source data
+//
+// Write to the selected endpoint FIFO
+//
+//-----------------------------------------------------------------------------
+void Fifo_Write(BYTE addr, unsigned int uNumBytes, BYTE * pData)
+{
+   int i;
+
+   // If >0 bytes requested,
+   if (uNumBytes)
+   {
+      while(USB0ADR & 0x80);              // Wait for BUSY->'0'
+                                          // (register available)
+      USB0ADR = (addr);                   // Set address (mask out bits7-6)
+
+      // Write <NumBytes> to the selected FIFO
+      for(i=0;i<uNumBytes;i++)
+      {
+         USB0DAT = pData[i];
+         while(USB0ADR & 0x80);           // Wait for BUSY->'0' (data ready)
+      }
+   }
+}
+
+
+//-----------------------------------------------------------------------------
+// Force_Stall
+//-----------------------------------------------------------------------------
+//
+// Return Value : None
+// Parameters   : None
+//
+// Force a procedural stall to be sent to the host
+//
+//-----------------------------------------------------------------------------
+void Force_Stall(void)
+{
+   POLL_WRITE_BYTE(INDEX, 0);
+   POLL_WRITE_BYTE(E0CSR, rbSDSTL);       // Set the send stall bit
+   Ep_Status[0] = EP_STALL;               // Put the endpoint in stall status
+}

@@ -1,0 +1,30 @@
+
+BL51 BANKED LINKER/LOCATER V6.20 - SN: D1SDC-6012SZ
+COPYRIGHT KEIL ELEKTRONIK GmbH 1987 - 2009
+"C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\Integration\Main.obj",
+"C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\Integration\Interrupts.obj",
+"C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\Integration\Globals.obj",
+"C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\Integration\SpiIO.obj",
+"C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\Integration\UsbIO.obj",
+"C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\Integration\UsbDescriptors.obj",
+"C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\Integration\McuIO.obj"  TO "C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\Integration\SHArK" RS(256) PL(68) PW(78) 
+
+*** WARNING L15: MULTIPLE CALL TO SEGMENT
+    SEGMENT: ?PR?_WRITEDATATODAC?SPIIO
+    CALLER1: ?PR?USB_ISR?INTERRUPTS
+    CALLER2: ?C_C51STARTUP
+
+*** WARNING L15: MULTIPLE CALL TO SEGMENT
+    SEGMENT: ?PR?_WRITEDATATOADC?SPIIO
+    CALLER1: ?PR?USB_ISR?INTERRUPTS
+    CALLER2: ?C_C51STARTUP
+
+******************************************************************************
+* RESTRICTED VERSION WITH 1000H BYTE CODE SIZE LIMIT; USED: 08D3H BYTE (55%) *
+******************************************************************************
+
+>> 
+>> 
+>> 
+Program Size: data=59.0 xdata=0 code=2259
+LINK/LOCATE RUN COMPLETE.  2 WARNING(S),  0 ERROR(S)

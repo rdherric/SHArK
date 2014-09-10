@@ -1,0 +1,26 @@
+//-----------------------------------------------------------------------------
+// McuConfig.h
+//-----------------------------------------------------------------------------
+// Copyright (C) RDH2 Science, LLC
+// http://www.rdh2.com
+//
+// McuConfig.h contains the definitions used by the Main.c
+// file to configure the MCU chip.
+//
+// Target:         C8051F32x
+// Tool chain:     Keil compiler
+// Command Line:   None
+//
+// Release 1.0 / Not Released
+//    -Initial Revision
+
+#ifndef MCUCONFIG_H
+#define MCUCONFIG_H
+
+//-----------------------------------------------------------------------------
+// Function Prototypes
+//-----------------------------------------------------------------------------
+void InitSYSCLK(void);
+void InitPORT(void);
+
+#endif // MCUCONFIG_H

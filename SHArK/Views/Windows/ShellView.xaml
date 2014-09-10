@@ -1,0 +1,136 @@
+﻿<APR:RibbonWindow x:Class="SHArK.Views.Windows.ShellView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:APD="http://schemas.actiprosoftware.com/winfx/xaml/docking"
+    xmlns:APR="http://schemas.actiprosoftware.com/winfx/xaml/ribbon"
+    xmlns:APS="http://schemas.actiprosoftware.com/winfx/xaml/shared"
+    xmlns:RES="clr-namespace:SHArK.Resources"
+    xmlns:RW="http://schemas.rdh2.com/windows/markup"
+    xmlns:CAL="http://www.caliburnproject.org"
+    ApplicationName="{x:Static RES:Strings.ApplicationName}" 
+    DocumentName="{Binding ElementName=_tabContainer, Path=SelectedItem.Header}"
+    Height="600" MinHeight="600" MinWidth="800" Width="800"
+    Icon="{RW:ImageResource ImagePath={x:Static RES:Strings.IconImageSource}}">
+
+    <DockPanel>
+
+        <!-- Main Ribbon Control -->
+        <APR:Ribbon x:Name="_ribbon" Panel.ZIndex="1" DockPanel.Dock="Top" 
+                ApplicationButtonImageSource="{RW:ImageResource ImagePath={x:Static RES:Strings.HomeButtonImageSource}}"
+                ApplicationButtonScreenTipHeader="{x:Static RES:Strings.HomeButtonTipHeader}" 
+                ApplicationButtonScreenTipDescription="{x:Static RES:Strings.HomeButtonTipDescription}"
+                IsApplicationButtonVisible="True" 
+                IsQuickAccessToolBarCustomizeButtonVisible="False"
+                IsQuickAccessToolBarCustomizationEnabled="False" 
+                IsCollapsible="False" IsMinimizable="False">
+
+            <!-- Application Menu -->
+            <APR:Ribbon.ApplicationMenu>
+                <APR:ApplicationMenu>
+                    
+                    <!-- Basic Buttons -->
+                    <APR:Button Label="{x:Static RES:Strings.New}" ImageSourceLarge="{RW:ImageResource ImagePath={x:Static RES:Strings.NewImageSource}}" 
+                                KeyTipAccessText="N" ScreenTipDescription="{x:Static RES:Strings.NewScreenTipDesc}" />
+                    <APR:Button Label="{x:Static RES:Strings.Open}" ImageSourceLarge="{RW:ImageResource ImagePath={x:Static RES:Strings.OpenImageSource}}" 
+                                KeyTipAccessText="O" ScreenTipDescription="{x:Static RES:Strings.OpenScreenTipDesc}" 
+                                CAL:Message.Attach="[Event Click] = [Action OpenSpectrum]" />
+                    <APR:SplitButton Label="{x:Static RES:Strings.SaveAs}" ImageSourceLarge="{RW:ImageResource ImagePath={x:Static RES:Strings.SaveAsImageSource}}" 
+                                     KeyTipAccessText="A" ScreenTipDescription="{x:Static RES:Strings.SaveAsScreenTipDesc}">
+                        <APR:Menu>
+                            <APR:Separator Label="{x:Static RES:Strings.SaveAsSeparator}" />
+                            <APR:Button Label="{x:Static RES:Strings.Raw3D}" 
+                                        ImageSourceLarge="{RW:ImageResource ImagePath={x:Static RES:Strings.Raw3DImageSource}}" />
+                            <APR:Button Label="{x:Static RES:Strings.JPEG}" 
+                                        ImageSourceLarge="{RW:ImageResource ImagePath={x:Static RES:Strings.JPEGImageSource}}"/>
+                        </APR:Menu>
+                    </APR:SplitButton>
+                    <APR:Separator />
+                    <APR:Button Label="{x:Static RES:Strings.Print}" ImageSourceLarge="{RW:ImageResource ImagePath={x:Static RES:Strings.PrintImageSource}}" 
+                                KeyTipAccessText="P" ScreenTipDescription="{x:Static RES:Strings.PrintScreenTipDesc}" />
+                    <APR:Separator />
+                    <APR:Button Label="{x:Static RES:Strings.Close}" ImageSourceLarge="{RW:ImageResource ImagePath={x:Static RES:Strings.CloseImageSource}}" 
+                                KeyTipAccessText="C" ScreenTipDescription="{x:Static RES:Strings.CloseScreenTipDesc}" />
+
+                    <!-- Recent Documents care of Actipro -->
+                    <APR:ApplicationMenu.AdditionalContent>
+                        <APR:RecentDocumentMenu>
+                            <APR:RecentDocumentMenu.Manager>
+                                <APS:RecentDocumentManager />
+                            </APR:RecentDocumentMenu.Manager>
+                        </APR:RecentDocumentMenu>
+                    </APR:ApplicationMenu.AdditionalContent>
+                    
+                    <!-- Application Menu Footer -->
+                    <APR:ApplicationMenu.FooterButtons>
+                        <APR:Button Label="{x:Static RES:Strings.AboutSHArK}" KeyTipAccessText="B" CAL:Message.Attach="[Event Click] = [Action AboutView]"
+                                    ScreenTipDescription="{x:Static RES:Strings.AboutSHArKScreenTipDesc}" />
+                        <APR:Button Label="{x:Static RES:Strings.Exit}" KeyTipAccessText="X" CAL:Message.Attach="[Event Click] = [Action Exit]"
+                                    ImageSourceSmall="{RW:ImageResource ImagePath={x:Static RES:Strings.ExitImageSourceSmall}}" 
+                                    ScreenTipDescription="{x:Static RES:Strings.ExitScreenTipDesc}"/>
+                    </APR:ApplicationMenu.FooterButtons>
+                </APR:ApplicationMenu>
+            </APR:Ribbon.ApplicationMenu>
+
+            <!-- QuickAccess Toolbar -->
+            <APR:Ribbon.QuickAccessToolBarItems>
+                <APR:Button ImageSourceSmall="{RW:ImageResource ImagePath={x:Static RES:Strings.NewImageSourceSmall}}" ToolTip="{x:Static RES:Strings.New}" />
+                <APR:Button ImageSourceSmall="{RW:ImageResource ImagePath={x:Static RES:Strings.OpenImageSourceSmall}}" ToolTip="{x:Static RES:Strings.Open}" />
+                <APR:Button ImageSourceSmall="{RW:ImageResource ImagePath={x:Static RES:Strings.PrintImageSourceSmall}}" ToolTip="{x:Static RES:Strings.Print}" />
+            </APR:Ribbon.QuickAccessToolBarItems>
+
+            <!-- Home Tab -->
+            <APR:Tab Label="{x:Static RES:Strings.Home}" KeyTipAccessText="P">
+                <APR:Group Label="{x:Static RES:Strings.Axes}">
+                    <APR:Button Label="{x:Static RES:Strings.ResetZoom}" ImageSourceLarge="{RW:ImageResource ImagePath={x:Static RES:Strings.ResetZoomImageSource}}" 
+                                KeyTipAccessText="Z" ScreenTipDescription="{x:Static RES:Strings.ResetZoomScreenTipDesc}" />
+                </APR:Group>
+                
+                <APR:Group Label="{x:Static RES:Strings.DataAcquistion}">
+                    <APR:Button Label="{x:Static RES:Strings.Pause}" ImageSourceLarge="{RW:ImageResource ImagePath={x:Static RES:Strings.PauseImageSource}}"
+                                KeyTipAccessText="U" ScreenTipDescription="{x:Static RES:Strings.PauseScreenTipDesc}" />
+                    <APR:Button Label="{x:Static RES:Strings.Stop}" ImageSourceLarge="{RW:ImageResource ImagePath={x:Static RES:Strings.StopImageSource}}" 
+                                KeyTipAccessText="T" ScreenTipDescription="{x:Static RES:Strings.StopScreenTipDesc}" />
+                </APR:Group>
+                <APR:Group Label="{x:Static RES:Strings.DataExport}">
+                    <APR:Button Label="{x:Static RES:Strings.ScaleToIPCE}" ImageSourceLarge="{RW:ImageResource ImagePath={x:Static RES:Strings.ScaleToIPCEImageSource}}"
+                                KeyTipAccessText="L" ScreenTipDescription="{x:Static RES:Strings.ScaleToIPCEScreenTipDesc}" />
+                </APR:Group>
+            </APR:Tab>
+
+            <!-- Configure Tab -->
+            <APR:Tab Label="{x:Static RES:Strings.Configure}" KeyTipAccessText="C">
+                <APR:Group Label="{x:Static RES:Strings.DAQ}">
+                    <APR:Button Label="{x:Static RES:Strings.ConfigureDAQ}" ImageSourceLarge="{RW:ImageResource ImagePath={x:Static RES:Strings.ConfigureDAQImageSource}}"
+                                KeyTipAccessText="D" ScreenTipDescription="{x:Static RES:Strings.ConfigureDAQScreenTipDesc}"/>
+                </APR:Group>
+                <APR:Group Label="{x:Static RES:Strings.Mirrors}">
+                    <APR:Button Label="{x:Static RES:Strings.ConfigureMirrors}" ImageSourceLarge="{RW:ImageResource ImagePath={x:Static RES:Strings.ConfigureMirrorsImageSource}}"
+                                KeyTipAccessText="M" ScreenTipDescription="{x:Static RES:Strings.ConfigureMirrorsScreenTipDesc}" />
+                </APR:Group>
+            </APR:Tab>
+        </APR:Ribbon>
+
+        <!-- DockSite, Workspace, TabbedMdiHost, and TabbedMdiContainer to hold the MDI Tabs -->
+        <APD:DockSite DockPanel.Dock="Bottom">
+            <APD:Workspace>
+                <APD:TabbedMdiHost>
+                    <APD:TabbedMdiContainer x:Name="_tabContainer" ItemsSource="{Binding Presenters}" />
+                </APD:TabbedMdiHost>
+            </APD:Workspace>            
+        </APD:DockSite>
+
+    </DockPanel>
+
+    <!-- StatusBar to show data about the Plots -->
+    <APR:RibbonWindow.StatusBar>
+        <StatusBar>
+            <StatusBarItem HorizontalAlignment="Left">
+                <Label x:Name="_plotPosition">Plot Position</Label>
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <Label x:Name="_acqTimeFmt">Acquisition Time</Label>
+            </StatusBarItem>
+        </StatusBar>
+    </APR:RibbonWindow.StatusBar>
+
+</APR:RibbonWindow>

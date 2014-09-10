@@ -1,0 +1,468 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="AboutSHArK" xml:space="preserve">
+    <value>About SHArK...</value>
+  </data>
+  <data name="AboutSHArKScreenTipDesc" xml:space="preserve">
+    <value>About the SHArK Application</value>
+  </data>
+  <data name="AboutSHArKTitle" xml:space="preserve">
+    <value>About SHArK</value>
+  </data>
+  <data name="ApplicationName" xml:space="preserve">
+    <value>SHArK Scanning Station</value>
+  </data>
+  <data name="AutoscaleAxes" xml:space="preserve">
+    <value>Autoscale Axes</value>
+  </data>
+  <data name="AutoscaleAxesImageSource" xml:space="preserve">
+    <value>/Resources/Images/Autoscale.png</value>
+  </data>
+  <data name="AutoscaleAxesScreenTipDesc" xml:space="preserve">
+    <value>Reset the X- and Y-Axes to fit the content of the Spectrum</value>
+  </data>
+  <data name="Axes" xml:space="preserve">
+    <value>Axes</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="CloseImageSource" xml:space="preserve">
+    <value>/Resources/Images/Close32.png</value>
+  </data>
+  <data name="CloseScreenTipDesc" xml:space="preserve">
+    <value>Close the Active Spectrum</value>
+  </data>
+  <data name="Configure" xml:space="preserve">
+    <value>Configure</value>
+  </data>
+  <data name="ConfigureDAQ" xml:space="preserve">
+    <value>Data Acquisition</value>
+  </data>
+  <data name="ConfigureDAQImageSource" xml:space="preserve">
+    <value>/Resources/Images/Configure.png</value>
+  </data>
+  <data name="ConfigureDAQScreenTipDesc" xml:space="preserve">
+    <value>Configure the Data Acquisition card to accept photocurrent input</value>
+  </data>
+  <data name="ConfigureMirrors" xml:space="preserve">
+    <value>Configure Mirrors</value>
+  </data>
+  <data name="ConfigureMirrorsImageSource" xml:space="preserve">
+    <value>/Resources/Images/Mirrors.png</value>
+  </data>
+  <data name="ConfigureMirrorsScreenTipDesc" xml:space="preserve">
+    <value>Configure the Mirror raster movement</value>
+  </data>
+  <data name="DAQ" xml:space="preserve">
+    <value>DAQ</value>
+  </data>
+  <data name="DataAcquistion" xml:space="preserve">
+    <value>Data Acquisition</value>
+  </data>
+  <data name="DataExport" xml:space="preserve">
+    <value>Data Export</value>
+  </data>
+  <data name="Exit" xml:space="preserve">
+    <value>Exit</value>
+  </data>
+  <data name="ExitImageSourceSmall" xml:space="preserve">
+    <value>/Resources/Images/Exit16.png</value>
+  </data>
+  <data name="ExitScreenTipDesc" xml:space="preserve">
+    <value>Exit the SHArK Application</value>
+  </data>
+  <data name="Home" xml:space="preserve">
+    <value>Home</value>
+  </data>
+  <data name="HomeButtonImageSource" xml:space="preserve">
+    <value>/Resources/Images/SHArKLogo.png</value>
+  </data>
+  <data name="HomeButtonTipDescription" xml:space="preserve">
+    <value>Click here to Open, Save, and Print SHArK files.</value>
+  </data>
+  <data name="HomeButtonTipHeader" xml:space="preserve">
+    <value>SHArK Home Button</value>
+  </data>
+  <data name="IconImageSource" xml:space="preserve">
+    <value>/Resources/Icons/SHArK.ico</value>
+  </data>
+  <data name="JPEG" xml:space="preserve">
+    <value>JPEG Image File</value>
+  </data>
+  <data name="JPEGImageSource" xml:space="preserve">
+    <value>/Resources/Images/JPEGFile.png</value>
+  </data>
+  <data name="Mirrors" xml:space="preserve">
+    <value>Mirrors</value>
+  </data>
+  <data name="New" xml:space="preserve">
+    <value>New</value>
+  </data>
+  <data name="NewImageSource" xml:space="preserve">
+    <value>/Resources/Images/New32.png</value>
+  </data>
+  <data name="NewImageSourceSmall" xml:space="preserve">
+    <value>/Resources/Images/New16.png</value>
+  </data>
+  <data name="NewScreenTipDesc" xml:space="preserve">
+    <value>Begin Acquisition of a New Spectrum</value>
+  </data>
+  <data name="Open" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="OpenImageSource" xml:space="preserve">
+    <value>/Resources/Images/Open32.png</value>
+  </data>
+  <data name="OpenImageSourceSmall" xml:space="preserve">
+    <value>/Resources/Images/Open16.png</value>
+  </data>
+  <data name="OpenScreenTipDesc" xml:space="preserve">
+    <value>Open an Existing SHArK Spectrum</value>
+  </data>
+  <data name="Pause" xml:space="preserve">
+    <value>Pause</value>
+  </data>
+  <data name="PauseImageSource" xml:space="preserve">
+    <value>/Resources/Images/Pause.png</value>
+  </data>
+  <data name="PauseScreenTipDesc" xml:space="preserve">
+    <value>Pause the active Spectrum data acquisition</value>
+  </data>
+  <data name="Plot" xml:space="preserve">
+    <value>Plot</value>
+  </data>
+  <data name="Print" xml:space="preserve">
+    <value>Print</value>
+  </data>
+  <data name="PrintImageSource" xml:space="preserve">
+    <value>/Resources/Images/Print32.png</value>
+  </data>
+  <data name="PrintImageSourceSmall" xml:space="preserve">
+    <value>/Resources/Images/Print16.png</value>
+  </data>
+  <data name="PrintScreenTipDesc" xml:space="preserve">
+    <value>Print the Active Spectrum</value>
+  </data>
+  <data name="Raw3D" xml:space="preserve">
+    <value>RAW 3D File</value>
+  </data>
+  <data name="Raw3DImageSource" xml:space="preserve">
+    <value>/Resources/Images/Raw3D.png</value>
+  </data>
+  <data name="ResetZoom" xml:space="preserve">
+    <value>Reset Zoom</value>
+  </data>
+  <data name="ResetZoomImageSource" xml:space="preserve">
+    <value>/Resources/Images/ResetZoom.png</value>
+  </data>
+  <data name="ResetZoomScreenTipDesc" xml:space="preserve">
+    <value>Zoom out of the Spectrum completely</value>
+  </data>
+  <data name="Restart" xml:space="preserve">
+    <value>Restart</value>
+  </data>
+  <data name="RestartImageSource" xml:space="preserve">
+    <value>/Resources/Images/Restart.png</value>
+  </data>
+  <data name="RestartScreenTipDesc" xml:space="preserve">
+    <value>Restart the paused Spectrum data acquisition</value>
+  </data>
+  <data name="SaveAs" xml:space="preserve">
+    <value>Save As</value>
+  </data>
+  <data name="SaveAsImageSource" xml:space="preserve">
+    <value>/Resources/Images/SaveAs32.png</value>
+  </data>
+  <data name="SaveAsScreenTipDesc" xml:space="preserve">
+    <value>Save the Active Spectrum to a Different Format</value>
+  </data>
+  <data name="SaveAsSeparator" xml:space="preserve">
+    <value>Save Copy of Document As...</value>
+  </data>
+  <data name="ScaleToIPCE" xml:space="preserve">
+    <value>Scale to IPCE</value>
+  </data>
+  <data name="ScaleToIPCEImageSource" xml:space="preserve">
+    <value>/Resources/Images/Scale.png</value>
+  </data>
+  <data name="ScaleToIPCEScreenTipDesc" xml:space="preserve">
+    <value>Scale the active Spectrum to Incident Photon to Current Efficiency</value>
+  </data>
+  <data name="SHArKExpanded" xml:space="preserve">
+    <value>Solar Hydrogen Activity Research Kit</value>
+  </data>
+  <data name="Stop" xml:space="preserve">
+    <value>Stop</value>
+  </data>
+  <data name="StopImageSource" xml:space="preserve">
+    <value>/Resources/Images/Stop.png</value>
+  </data>
+  <data name="StopScreenTipDesc" xml:space="preserve">
+    <value>Stop the active Spectrum data acquistion</value>
+  </data>
+  <data name="Version" xml:space="preserve">
+    <value>Version</value>
+  </data>
+  <data name="MdiRegion" xml:space="preserve">
+    <value>mdiRegion</value>
+  </data>
+  <data name="RibbonRegion" xml:space="preserve">
+    <value>ribbonRegion</value>
+  </data>
+  <data name="ShellViewName" xml:space="preserve">
+    <value>mainShellView</value>
+  </data>
+  <data name="TabHostViewName" xml:space="preserve">
+    <value>mainTabHost</value>
+  </data>
+  <data name="RibbonViewName" xml:space="preserve">
+    <value>mainRibbon</value>
+  </data>
+  <data name="EnterFileName" xml:space="preserve">
+    <value>Enter File Name</value>
+  </data>
+  <data name="EnterFileNameDesc" xml:space="preserve">
+    <value>Enter the name of the File to be used to store data and click Next.</value>
+  </data>
+  <data name="NewSpectrumWizardTitle" xml:space="preserve">
+    <value>New Spectrum Wizard</value>
+  </data>
+  <data name="SHArKCommonName" xml:space="preserve">
+    <value>SHArK.Common</value>
+  </data>
+  <data name="CheckWizardResults" xml:space="preserve">
+    <value>Check Wizard Results</value>
+  </data>
+  <data name="CheckWizardResultsDesc" xml:space="preserve">
+    <value>Check the results of the Wizard below and click Finish to close.</value>
+  </data>
+  <data name="NewSpectrumWizardName" xml:space="preserve">
+    <value>newSpectrumWizard</value>
+  </data>
+  <data name="OpenFilePageName" xml:space="preserve">
+    <value>pageOpenFile</value>
+  </data>
+  <data name="SetSpectrumBoundaries" xml:space="preserve">
+    <value>Set Spectrum Boundaries</value>
+  </data>
+  <data name="SetSpectrumBoundariesDesc" xml:space="preserve">
+    <value>Use the Controls to set the top left and bottom right points of the Spectrum.</value>
+  </data>
+  <data name="SetSpectrumBoundariesPageName" xml:space="preserve">
+    <value>pageSetBounds</value>
+  </data>
+  <data name="BasicLogoImageSource" xml:space="preserve">
+    <value>/Resources/Images/BasicLogo.png</value>
+  </data>
+  <data name="BoundaryStep1" xml:space="preserve">
+    <value>Step 1:  Using the X and Y-Axis controls to the right, move the laser to the initial X and Y position of the spectrum.</value>
+  </data>
+  <data name="BoundaryStep2" xml:space="preserve">
+    <value>Step 2:  Using the X and Y-Axis controls to the right, move the laser to the final X and Y position and click Next to continue.</value>
+  </data>
+  <data name="SetInitialPosition" xml:space="preserve">
+    <value>Set Initial Position</value>
+  </data>
+  <data name="XAxis" xml:space="preserve">
+    <value>X-Axis</value>
+  </data>
+  <data name="YAxis" xml:space="preserve">
+    <value>Y-Axis</value>
+  </data>
+  <data name="OpenSHArKFile" xml:space="preserve">
+    <value>Open SHArK 3-D File</value>
+  </data>
+  <data name="TitleSeparator" xml:space="preserve">
+    <value> - </value>
+  </data>
+  <data name="TabHostName" xml:space="preserve">
+    <value>tabHost</value>
+  </data>
+  <data name="ChartSize" xml:space="preserve">
+    <value>Chart size</value>
+  </data>
+  <data name="ChartsPerPage" xml:space="preserve">
+    <value>charts per page</value>
+  </data>
+  <data name="ChartsToPrint" xml:space="preserve">
+    <value>Charts to print</value>
+  </data>
+  <data name="PrintAll" xml:space="preserve">
+    <value>Print all open windows</value>
+  </data>
+  <data name="PrintCurrent" xml:space="preserve">
+    <value>Print current window only</value>
+  </data>
+  <data name="PrintJobName" xml:space="preserve">
+    <value>SHArK Spectrum</value>
+  </data>
+  <data name="Multiple" xml:space="preserve">
+    <value>Multiple</value>
+  </data>
+  <data name="SaveSHArKFile" xml:space="preserve">
+    <value>Save SHArK 3-D File</value>
+  </data>
+  <data name="ChartPositionFormatString" xml:space="preserve">
+    <value>X-Axis: {0:D}  Y-Axis: {1:D}  Z-Value: {2:E2}</value>
+  </data>
+  <data name="HardwareWizardTitle" xml:space="preserve">
+    <value>Hardware Configuration Wizard</value>
+  </data>
+  <data name="HardwareWizardName" xml:space="preserve">
+    <value>hardwareWizard</value>
+  </data>
+  <data name="DoNotConfigure" xml:space="preserve">
+    <value>Do not configure hardware at this time</value>
+  </data>
+  <data name="HardwareWizardDoNotConfigText" xml:space="preserve">
+    <value>If you plan to use this software only for data analysis purposes and not to operate hardware, check the box below and click Next to finish.  You may open this Wizard at any time to license it using the Configure button.</value>
+  </data>
+  <data name="HardwareWizardWelcomeDescription" xml:space="preserve">
+    <value>This Wizard will help you configure your SHArK hardware to operate with this application.  </value>
+  </data>
+  <data name="HardwareWizardWelcomeText" xml:space="preserve">
+    <value>In order to utilize the SHArK application, you must register the hardware and provide a software license.  To do this, connect all of the hardware cables to your computer and ensure that the hardware is powered on, then click Next to continue.</value>
+  </data>
+  <data name="HardwareWizardWelcomeTitle" xml:space="preserve">
+    <value>Welcome to the Hardware Configuration Wizard</value>
+  </data>
+  <data name="HardwareWizardInstalledDesc" xml:space="preserve">
+    <value>The hardware installed on your computer is listed below.  If no hardware is listed, ensure that the equipment is properly connected and powered up and try this Wizard again.  Otherwise, click Next to continue.</value>
+  </data>
+  <data name="HardwareWizardInstalledTitle" xml:space="preserve">
+    <value>Installed SHArK Hardware</value>
+  </data>
+  <data name="HardwareWizardLicenseDesc" xml:space="preserve">
+    <value>To use the SHArK application with the hardware that is installed, a valid license must be entered.  Enter the license key below and click Next to continue.</value>
+  </data>
+  <data name="HardwareWizardLicenseTitle" xml:space="preserve">
+    <value>Enter SHArK Application License</value>
+  </data>
+  <data name="HardwareDetectionText" xml:space="preserve">
+    <value>Text for the Hardware Detection...</value>
+  </data>
+  <data name="MirrorName" xml:space="preserve">
+    <value>Mirror Movement Interface:</value>
+  </data>
+  <data name="PotentiostatName" xml:space="preserve">
+    <value>Potentiostat Interface:</value>
+  </data>
+</root>

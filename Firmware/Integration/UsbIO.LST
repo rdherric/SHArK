@@ -1,0 +1,1005 @@
+C51 COMPILER V8.18   USBIO                                                                 01/09/2011 12:30:01 PAGE 1   
+
+
+C51 COMPILER V8.18, COMPILATION OF MODULE USBIO
+OBJECT MODULE PLACED IN UsbIO.OBJ
+COMPILER INVOKED BY: C:\SiLabs\MCU\IDEfiles\C51\BIN\C51.exe UsbIO.c DB OE BR INCDIR(C:\SiLabs\MCU\Inc)
+
+line level    source
+
+   1          //-----------------------------------------------------------------------------
+   2          // UsbIO.c
+   3          //-----------------------------------------------------------------------------
+   4          // Copyright (C) RDH2 Science, LLC
+   5          // http://www.rdh2.com
+   6          //
+   7          // UsbIO.c contains the functions required to communicate
+   8          // via the USB port.
+   9          //
+  10          // Target:         C8051F32x
+  11          // Tool chain:     Keil compiler
+  12          // Command Line:   None
+  13          //
+  14          // Release 1.0 / Not Released
+  15          //    -Initial Revision
+  16          
+  17          //-----------------------------------------------------------------------------
+  18          // Includes
+  19          //-----------------------------------------------------------------------------
+  20          #include <compiler_defs.h>
+  21          #include <C8051F320_defs.h>
+  22          #include "Main.h"
+  23          #include "UsbIO.h"
+  24          #include "UsbDescriptors.h"
+  25          #include "Registers.h"
+  26          #include "SpiIO.h"
+  27          
+  28          
+  29          //-----------------------------------------------------------------------------
+  30          // Externs
+  31          //-----------------------------------------------------------------------------
+  32          // Device Descriptor definitions from USBDescriptor.c
+  33          extern device_descriptor DeviceDesc;            
+  34          extern configuration_descriptor ConfigDesc;
+  35          extern interface_descriptor InterfaceDesc;
+  36          extern endpoint_descriptor Endpoint1Desc;
+  37          extern endpoint_descriptor Endpoint2Desc;
+  38          extern U8* StringDescTable[];
+  39          
+  40          // ADC definitions from Globals.c
+  41          extern U8 adcHigh;
+  42          extern U8 adcLow;
+  43          
+  44          // Device status and I/O definitions
+  45          setup_buffer Setup;
+  46          U16 DataSize;
+  47          U16 DataSent;
+  48          U8* DataPtr;
+  49          U8 EpStatus[3] = { EP_IDLE, EP_IDLE, EP_IDLE };
+  50          U8 USBState;
+  51          U16 CurrentValue = 0;
+  52          
+  53          // These are response packets used for communication with host
+  54          code U8 ONES_PACKET[2] = {0x01, 0x00};        
+  55          code U8 ZERO_PACKET[2] = {0x00, 0x00};        
+C51 COMPILER V8.18   USBIO                                                                 01/09/2011 12:30:01 PAGE 2   
+
+  56          
+  57          
+  58          //-----------------------------------------------------------------------------
+  59          // HandleControl
+  60          //-----------------------------------------------------------------------------
+  61          //
+  62          // Return Value : None
+  63          // Parameters   : None
+  64          // 
+  65          // Handles a USB Control Packet.
+  66          //
+  67          //-----------------------------------------------------------------------------
+  68          void HandleControl(void)
+  69          {
+  70   1              // Local variables 
+  71   1              U8 controlReg;
+  72   1      
+  73   1              // Set the index to EP0 and read the control
+  74   1              WriteUSBControlByte(INDEX, 0);
+  75   1              controlReg = ReadUSBControlByte(E0CSR);
+  76   1      
+  77   1              // If this is an address set command, handle it
+  78   1              if (EpStatus[0] == EP_ADDRESS)
+  79   1              {
+  80   2                      WriteUSBControlByte(FADDR, LOBYTE(Setup.wValue));
+  81   2                      EpStatus[0] = EP_IDLE;
+  82   2              }
+  83   1      
+  84   1              // If the last packet was a stall, set the 
+  85   1              // stall bit and return EP0 to IDLE
+  86   1              if (controlReg & rbSTSTL)
+  87   1              {
+  88   2                      WriteUSBControlByte(E0CSR, 0);
+  89   2                      EpStatus[0] = EP_IDLE;
+  90   2                      return;
+  91   2              }
+  92   1      
+  93   1              // If the last Setup transaction was ended prematurely,
+  94   1              // set the serviced Setup End bit and return EP0 to IDLE
+  95   1              if (controlReg & rbSUEND)
+  96   1              {
+  97   2                      WriteUSBControlByte(E0CSR, rbDATAEND);
+  98   2                      WriteUSBControlByte(E0CSR, rbSSUEND);
+  99   2                      EpStatus[0] = EP_IDLE;
+ 100   2              }
+ 101   1      
+ 102   1              // If EP0 is in IDLE, get the Setup packet off 
+ 103   1              // of the FIFO and do what needs to be done
+ 104   1              if (EpStatus[0] == EP_IDLE && (controlReg & rbOPRDY) > 0)
+ 105   1              {
+ 106   2                      HandleSetup();
+ 107   2              }
+ 108   1      
+ 109   1              // Handle a transmit if necessary
+ 110   1              if (EpStatus[0] == EP_TX && !(controlReg & rbINPRDY))
+ 111   1              {
+ 112   2                      HandleTransmit(controlReg);
+ 113   2              }
+ 114   1      
+ 115   1              // Handle a recieve if necessary
+ 116   1              if (EpStatus[0] == EP_RX && (controlReg & rbOPRDY) > 0)
+ 117   1              {
+C51 COMPILER V8.18   USBIO                                                                 01/09/2011 12:30:01 PAGE 3   
+
+ 118   2                      HandleReceive(controlReg);
+ 119   2              }
+ 120   1      }
+ 121          
+ 122          
+ 123          //-----------------------------------------------------------------------------
+ 124          // HandleSetup
+ 125          //-----------------------------------------------------------------------------
+ 126          //
+ 127          // Return Value : None
+ 128          // Parameters   : None
+ 129          // 
+ 130          // Handles a USB Setup packet and performs the appropriate
+ 131          // operation.
+ 132          //
+ 133          //-----------------------------------------------------------------------------
+ 134          void HandleSetup(void)
+ 135          {
+ 136   1              // Get the Setup packet off the FIFO
+ 137   1              ReadFromFIFO(FIFO_EP0, 8, (U8*)&Setup);
+ 138   1      
+ 139   1              // Swap the bytes for endian
+ 140   1              Setup.wValue = SWAPBYTES(Setup.wValue);
+ 141   1              Setup.wIndex = SWAPBYTES(Setup.wIndex);
+ 142   1              Setup.wLength = SWAPBYTES(Setup.wLength);
+ 143   1      
+ 144   1              // Call the function to handle each kind of
+ 145   1              // standard request
+ 146   1              switch (Setup.bRequest)
+ 147   1              {
+ 148   2                      case GET_STATUS:
+ 149   2                              GetStatus();
+ 150   2                              break;
+ 151   2      
+ 152   2                      case CLEAR_FEATURE:
+ 153   2                              SetEndpointStatus(EP_IDLE);
+ 154   2                              break;
+ 155   2      
+ 156   2                      case SET_FEATURE:
+ 157   2                              SetEndpointStatus(EP_HALT);
+ 158   2                              break;
+ 159   2      
+ 160   2                      case SET_ADDRESS:
+ 161   2                              SetAddress();
+ 162   2                              break;
+ 163   2      
+ 164   2                      case GET_DESCRIPTOR:
+ 165   2                              GetDescriptor();
+ 166   2                              break;
+ 167   2      
+ 168   2                      case GET_CONFIGURATION:
+ 169   2                              GetConfiguration();
+ 170   2                              break;
+ 171   2      
+ 172   2                      case SET_CONFIGURATION:
+ 173   2                              SetConfiguration();
+ 174   2                              break;
+ 175   2      
+ 176   2                      case GET_INTERFACE:
+ 177   2                              GetInterface();
+ 178   2                              break;
+ 179   2      
+C51 COMPILER V8.18   USBIO                                                                 01/09/2011 12:30:01 PAGE 4   
+
+ 180   2                      case SET_INTERFACE:
+ 181   2                              SetInterface();
+ 182   2                              break;
+ 183   2      
+ 184   2                      default:
+ 185   2                              // Send stall to host if invalid request
+ 186   2                              ForceStall();
+ 187   2                              break;
+ 188   2              }
+ 189   1      }
+ 190          
+ 191          
+ 192          //-----------------------------------------------------------------------------
+ 193          // HandleTransmit
+ 194          //-----------------------------------------------------------------------------
+ 195          //
+ 196          // Return Value : None
+ 197          // Parameters   : U8 controlReg
+ 198          // 
+ 199          // Handles a USB Endpoint 0 transmit operation.
+ 200          //
+ 201          //-----------------------------------------------------------------------------
+ 202          void HandleTransmit(U8 controlReg)
+ 203          {
+ 204   1              // Check to see if Setup End or Out Packet received, if so do not put
+ 205   1              // any new data on FIFO
+ 206   1              if ((!(controlReg & rbSUEND)) || (!(controlReg & rbOPRDY)))
+ 207   1              {
+ 208   2                      // Add In Packet ready flag to E0CSR bitmask
+ 209   2                      controlReg = rbINPRDY;
+ 210   2                      if (DataSize >= EP0_PACKET_SIZE)
+ 211   2              {
+ 212   3                              // Break Data into multiple packets if larger than Max Packet
+ 213   3                         WriteToFIFO(FIFO_EP0, EP0_PACKET_SIZE, DataPtr);
+ 214   3      
+ 215   3                         // Advance data pointer
+ 216   3                         DataPtr += EP0_PACKET_SIZE;
+ 217   3      
+ 218   3                         // Decrement data size
+ 219   3                         DataSize -= EP0_PACKET_SIZE;
+ 220   3      
+ 221   3                         // Increment data sent counter
+ 222   3                         DataSent += EP0_PACKET_SIZE;
+ 223   3                      }
+ 224   2                      else
+ 225   2                      {
+ 226   3                         // If data is less than Max Packet size or zero
+ 227   3                         WriteToFIFO(FIFO_EP0, DataSize, DataPtr);
+ 228   3      
+ 229   3                         // Add Data End bit to bitmask
+ 230   3                         controlReg |= rbDATAEND;
+ 231   3      
+ 232   3                         // Return EP 0 to idle state
+ 233   3                         EpStatus[0] = EP_IDLE;
+ 234   3                      }
+ 235   2      
+ 236   2                      // This case exists when the host requests an even multiple of
+ 237   2                      // your endpoint zero max packet size, and you need to exit
+ 238   2                      // transmit mode without sending a zero length packet
+ 239   2                      if (DataSent == Setup.wLength)
+ 240   2              {
+ 241   3                              controlReg |= rbDATAEND;
+C51 COMPILER V8.18   USBIO                                                                 01/09/2011 12:30:01 PAGE 5   
+
+ 242   3                              EpStatus[0] = EP_IDLE;
+ 243   3                      }
+ 244   2      
+ 245   2                      // Write mask to E0CSR
+ 246   2                      WriteUSBControlByte(E0CSR, controlReg);
+ 247   2              }
+ 248   1      }
+ 249          
+ 250          
+ 251          //-----------------------------------------------------------------------------
+ 252          // HandleReceive
+ 253          //-----------------------------------------------------------------------------
+ 254          //
+ 255          // Return Value : None
+ 256          // Parameters   : None
+ 257          // 
+ 258          // Handles a USB Endpoint 0 recieve operation.
+ 259          //
+ 260          //-----------------------------------------------------------------------------
+ 261          void HandleReceive(U8 controlReg)
+ 262          {
+ 263   1              // Verify that a packet was received
+ 264   1              if (controlReg & rbOPRDY)
+ 265   1              {
+ 266   2                      // Add the bitmask for reading
+ 267   2                      controlReg = rbSOPRDY;
+ 268   2      
+ 269   2                      // If the packet is larger than the packet size that
+ 270   2                      // can be held, break it up
+ 271   2                      if (DataSize >= EP0_PACKET_SIZE)
+ 272   2                      {
+ 273   3                              ReadFromFIFO(FIFO_EP0, EP0_PACKET_SIZE, DataPtr);
+ 274   3      
+ 275   3                              // Advance data pointer
+ 276   3                              DataPtr += EP0_PACKET_SIZE;
+ 277   3      
+ 278   3                              // Decrement data size
+ 279   3                              DataSize -= EP0_PACKET_SIZE;
+ 280   3      
+ 281   3                              // Increment data sent counter
+ 282   3                              DataSent += EP0_PACKET_SIZE;
+ 283   3                      }
+ 284   2                      else
+ 285   2                      {
+ 286   3                              // Read the bytes from the FIFO
+ 287   3                              ReadFromFIFO(FIFO_EP0, DataSize, DataPtr);
+ 288   3      
+ 289   3                              // Signal the end of the data
+ 290   3                              controlReg |= rbDATAEND;
+ 291   3                              EpStatus[0] = EP_IDLE;
+ 292   3                      }
+ 293   2      
+ 294   2                      // This case exists when the host requests an even multiple of
+ 295   2                      // your endpoint zero max packet size, and you need to exit
+ 296   2                      // transmit mode without sending a zero length packet
+ 297   2                      if (DataSent == Setup.wLength)
+ 298   2                      {
+ 299   3                              controlReg |= rbDATAEND;
+ 300   3                              EpStatus[0] = EP_IDLE;
+ 301   3                      }
+ 302   2      
+ 303   2                      // Write the status bit if necessary
+C51 COMPILER V8.18   USBIO                                                                 01/09/2011 12:30:01 PAGE 6   
+
+ 304   2                      if (EpStatus[0] != EP_STALL) 
+ 305   2                      {
+ 306   3                              WriteUSBControlByte(E0CSR, controlReg);
+ 307   3                      }
+ 308   2              }
+ 309   1      }
+ 310          
+ 311          
+ 312          //-----------------------------------------------------------------------------
+ 313          // HandleIn1
+ 314          //-----------------------------------------------------------------------------
+ 315          //
+ 316          // Return Value : None
+ 317          // Parameters   : None
+ 318          // 
+ 319          // Handles a USB Endpoint 1 in packet and performs the 
+ 320          // appropriate operation.
+ 321          //
+ 322          //-----------------------------------------------------------------------------
+ 323          void HandleIn1(void)
+ 324          {
+ 325   1              // The only thing that occurs on Endpoint 1
+ 326   1              // is the voltage set.  Send the data to the 
+ 327   1              // function.
+ 328   1              U16 voltageFlag = (U16) DataPtr;
+ 329   1              WriteDataToDAC(0x00, HIBYTE(voltageFlag), LOBYTE(voltageFlag));
+ 330   1      }
+ 331          
+ 332          
+ 333          //-----------------------------------------------------------------------------
+ 334          // HandleOut2
+ 335          //-----------------------------------------------------------------------------
+ 336          //
+ 337          // Return Value : None
+ 338          // Parameters   : None
+ 339          // 
+ 340          // Handles a USB Endpoint 2 out packet and performs the
+ 341          // appropriate operation.
+ 342          //
+ 343          //-----------------------------------------------------------------------------
+ 344          void HandleOut2(void)
+ 345          {
+ 346   1              // The only thing that occurs on Endpoint 2
+ 347   1              // is the current read.  Get the data and 
+ 348   1              // set the value in the DataPtr.
+ 349   1              WriteDataToADC(0xFF, 0xFF);
+ 350   1              CurrentValue = ASSEMBLEBYTES(adcHigh, adcLow);
+ 351   1      
+ 352   1              // Set the value to be sent out the USB
+ 353   1              DataPtr = &CurrentValue;
+*** WARNING C182 IN LINE 353 OF USBIO.C: pointer to different objects
+ 354   1              DataSize = 2;
+ 355   1      
+ 356   1              // Show that data is ready
+ 357   1              IndicateDataReady();
+ 358   1      }
+ 359          
+ 360          
+ 361          //-----------------------------------------------------------------------------
+ 362          // InitUSB0
+ 363          //-----------------------------------------------------------------------------
+ 364          //
+C51 COMPILER V8.18   USBIO                                                                 01/09/2011 12:30:01 PAGE 7   
+
+ 365          // Return Value : None
+ 366          // Parameters   : None
+ 367          // 
+ 368          // Initializes the USB0 port on the MCU so that USB communication
+ 369          // can occur.
+ 370          //
+ 371          //-----------------------------------------------------------------------------
+ 372          void InitUSB0(void)
+ 373          {
+ 374   1              // Force Asynchronous USB Reset
+ 375   1              WriteUSBControlByte(POWER, 0x08);
+ 376   1      
+ 377   1              // Enable Endpoint 0-2 in interrupts
+ 378   1              WriteUSBControlByte(IN1IE, 0x07);
+ 379   1      
+ 380   1              // Enable Endpoint 0-2 out interrupts
+ 381   1              WriteUSBControlByte(OUT1IE, 0x07);
+ 382   1      
+ 383   1              // Enable Reset,Resume,Suspend interrupts
+ 384   1              WriteUSBControlByte(CMIE, 0x00);
+ 385   1      
+ 386   1              // Enable transceiver; select full speed
+ 387   1              USB0XCN = 0xE0;                     
+ 388   1      
+ 389   1              // Enable clock recovery, single-step mode
+ 390   1              WriteUSBControlByte(CLKREC, 0x89);
+ 391   1      
+ 392   1              // Enable USB0 Interrupts
+ 393   1              EIE1 |= 0x02;                       
+ 394   1      
+ 395   1              // Enable USB0 by clearing the USB Inhibit bit
+ 396   1              // and enable suspend detection
+ 397   1              WriteUSBControlByte(POWER, 0x01);
+ 398   1      }
+ 399          
+ 400          
+ 401          //-----------------------------------------------------------------------------
+ 402          // UsbReset
+ 403          //-----------------------------------------------------------------------------
+ 404          //
+ 405          // Return Value : None
+ 406          // Parameters   : None
+ 407          // 
+ 408          // Resets USB operation.
+ 409          //
+ 410          //-----------------------------------------------------------------------------
+ 411          void UsbReset(void)
+ 412          {
+ 413   1              // Clear USB inhibit bit to enable USB
+ 414   1              // and suspend detection
+ 415   1              WriteUSBControlByte(POWER, 0x01);
+ 416   1      }
+ 417          
+ 418          
+ 419          //-----------------------------------------------------------------------------
+ 420          // GetStatus
+ 421          //-----------------------------------------------------------------------------
+ 422          //
+ 423          // Return Value : None
+ 424          // Parameters   : None
+ 425          //
+ 426          // This routine returns a two byte status packet to the host
+C51 COMPILER V8.18   USBIO                                                                 01/09/2011 12:30:01 PAGE 8   
+
+ 427          //
+ 428          //-----------------------------------------------------------------------------
+ 429          void GetStatus()
+ 430          {
+ 431   1              // Check the data currently configured and send a stall 
+ 432   1              // indicating invalid request if necessary 
+ 433   1              if ((HIBYTE(Setup.wValue) || LOBYTE(Setup.wValue) || 
+ 434   1                       HIBYTE(Setup.wLength) || (LOBYTE(Setup.wLength) != 2)) || // Input not valid
+ 435   1                      (USBState != DEV_CONFIGURED))
+ 436   1              {
+ 437   2                      ForceStall();
+ 438   2              }
+ 439   1      
+ 440   1              // Switch on the RequestType to determine if the
+ 441   1              // recipient is the device, interface, or endpoint
+ 442   1              switch(Setup.bmRequestType)                  
+ 443   1              {
+ 444   2                      case OUT_DEVICE:
+ 445   2                      case OUT_INTERFACE:
+ 446   2                              // Device: send 0x00, indicating bus power and no
+ 447   2                              // remote wake-up supported
+ 448   2                              // Interface: status packet always zero
+ 449   2                              DataPtr = &ZERO_PACKET;
+ 450   2                              DataSize = 2;
+ 451   2                              break;
+ 452   2      
+ 453   2                      case OUT_ENDPOINT:                        
+ 454   2                              // Handle case if request is directed to EP 1
+ 455   2                              if ((LOBYTE(Setup.wIndex) == IN_EP1 && EpStatus[1] == EP_HALT) ||
+ 456   2                                      (LOBYTE(Setup.wIndex) == IN_EP2 && EpStatus[2] == EP_HALT))
+ 457   2                              {
+ 458   3                                      // Endpoint halted, send halted packet
+ 459   3                                      DataPtr = &ONES_PACKET;
+ 460   3                                      DataSize = 2;
+ 461   3                              }
+ 462   2                              else
+ 463   2                              {
+ 464   3                                      // Endpoint active, send active packet
+ 465   3                                      DataPtr = &ZERO_PACKET;
+ 466   3                                      DataSize = 2;
+ 467   3                              }
+ 468   2                              break;
+ 469   2      
+ 470   2                      default:
+ 471   2                              ForceStall();
+ 472   2                              break;
+ 473   2              }
+ 474   1      
+ 475   1              // Set serviced Setup Packet, Endpoint 0 in transmit mode, 
+ 476   1              // and reset DataSent counter
+ 477   1              if (EpStatus[0] != EP_STALL)
+ 478   1              {
+ 479   2                      WriteUSBControlByte(E0CSR, rbSOPRDY);        
+ 480   2                      EpStatus[0] = EP_TX;                     
+ 481   2                      DataSent = 0;
+ 482   2              }
+ 483   1      }
+ 484          
+ 485          
+ 486          //-----------------------------------------------------------------------------
+ 487          // SetEndpointStatus
+ 488          //-----------------------------------------------------------------------------
+C51 COMPILER V8.18   USBIO                                                                 01/09/2011 12:30:01 PAGE 9   
+
+ 489          //
+ 490          // Return Value : None
+ 491          // Parameters   : None
+ 492          //
+ 493          // This routine can clear Halt Endpoint features on endpoint 1 and 2.
+ 494          //
+ 495          //-----------------------------------------------------------------------------
+ 496          void SetEndpointStatus(U8 status)
+ 497          {
+ 498   1              // Local variables
+ 499   1              U8 endpoint;
+ 500   1              U8 address;
+ 501   1              U8 input;
+ 502   1      
+ 503   1              // Set the values written below
+ 504   1              if (LOBYTE(Setup.wIndex) == IN_EP1)
+ 505   1              {
+ 506   2                      // Set Endpoint values
+ 507   2                      endpoint = 1;
+ 508   2                      address = EINCSR1;
+ 509   2      
+ 510   2                      // Set the inputs based on the status
+ 511   2                      if (status == EP_IDLE)
+ 512   2                      {
+ 513   3                              input = rbInCLRDT;
+ 514   3                      }
+ 515   2                      else
+ 516   2                      {
+ 517   3                              input = rbInSDSTL;
+ 518   3                      }
+ 519   2              }
+ 520   1              else
+ 521   1              {
+ 522   2                      // Set Endpoint values
+ 523   2                      endpoint = 2;
+ 524   2                      address = EOUTCSR1;
+ 525   2      
+ 526   2                      // Set the input based on the status
+ 527   2                      if (status == EP_IDLE)
+ 528   2                      {
+ 529   3                              input = rbOutCLRDT;
+ 530   3                      }
+ 531   2                      else
+ 532   2                      {
+ 533   3                              input = rbOutSDSTL;
+ 534   3                      }
+ 535   2              }
+ 536   1      
+ 537   1              // Write the data to the USB bytes
+ 538   1          WriteUSBControlByte(INDEX, endpoint);
+ 539   1          WriteUSBControlByte(address, input);
+ 540   1          EpStatus[endpoint] = status;
+ 541   1      
+ 542   1              // Reset the index to 0 and set Serviced Out
+ 543   1              // ready to indicate transaction is over
+ 544   1              WriteUSBControlByte(INDEX, 0);
+ 545   1              IndicateDataReady();
+ 546   1      }
+ 547          
+ 548          
+ 549          //-----------------------------------------------------------------------------
+ 550          // SetAddress
+C51 COMPILER V8.18   USBIO                                                                 01/09/2011 12:30:01 PAGE 10  
+
+ 551          //-----------------------------------------------------------------------------
+ 552          //
+ 553          // Return Value : None
+ 554          // Parameters   : None
+ 555          //
+ 556          // Set new function address
+ 557          //
+ 558          //-----------------------------------------------------------------------------
+ 559          void SetAddress()                          
+ 560          {
+ 561   1              // Set endpoint zero to update address next status phase
+ 562   1              EpStatus[0] = EP_ADDRESS;
+ 563   1      
+ 564   1              // Set the USBState based on the value of the Setup
+ 565   1              // packet.  If the address is 0x00, just set to default
+ 566   1              // device state.
+ 567   1              if (LOBYTE(Setup.wValue) != 0)
+ 568   1              {
+ 569   2                      USBState = DEV_ADDRESS;
+ 570   2              }
+ 571   1              else
+ 572   1              {
+ 573   2                      USBState = DEV_DEFAULT;
+ 574   2              }
+ 575   1      
+ 576   1              // Show that data is ready
+ 577   1              IndicateDataReady();
+ 578   1      }
+ 579          
+ 580          
+ 581          //-----------------------------------------------------------------------------
+ 582          // GetDescriptor
+ 583          //-----------------------------------------------------------------------------
+ 584          //
+ 585          // Return Value : None
+ 586          // Parameters   : None
+ 587          //
+ 588          // This routine sets the data pointer and size to correct 
+ 589          // descriptor and sets the endpoint status to transmit
+ 590          //
+ 591          //-----------------------------------------------------------------------------
+ 592          void GetDescriptor()                       
+ 593          {
+ 594   1              // Determine which type of descriptor was requested 
+ 595   1              // and set data ptr and size accordingly
+ 596   1              switch(HIBYTE(Setup.wValue))
+ 597   1              {
+ 598   2                      case DSC_DEVICE:
+ 599   2                              DataPtr = (U8*)&DeviceDesc;
+ 600   2                              DataSize = DeviceDesc.bLength;
+ 601   2                              break;
+ 602   2      
+ 603   2                      case DSC_CONFIG:
+ 604   2                              DataPtr = (U8*)&ConfigDesc;
+ 605   2                              DataSize = ConfigDesc.wTotalLength;
+ 606   2                              break;
+ 607   2      
+ 608   2                      case DSC_STRING:
+ 609   2                              DataPtr = StringDescTable[LOBYTE(Setup.wValue)];
+ 610   2                              DataSize = *DataPtr;
+ 611   2                              break;
+ 612   2      
+C51 COMPILER V8.18   USBIO                                                                 01/09/2011 12:30:01 PAGE 11  
+
+ 613   2                      case DSC_INTERFACE:
+ 614   2                              DataPtr = (U8*)&InterfaceDesc;
+ 615   2                              DataSize = InterfaceDesc.bLength;
+ 616   2                              break;
+ 617   2      
+ 618   2                      case DSC_ENDPOINT:
+ 619   2                              if (LOBYTE(Setup.wValue) == IN_EP1)
+ 620   2                              {
+ 621   3                                 DataPtr = (U8*)&Endpoint1Desc;
+ 622   3                                 DataSize = Endpoint1Desc.bLength;
+ 623   3                              }
+ 624   2                              else
+ 625   2                              {
+ 626   3                                 DataPtr = (U8*)&Endpoint2Desc;
+ 627   3                                 DataSize = Endpoint2Desc.bLength;
+ 628   3                              }
+ 629   2                              break;
+ 630   2      
+ 631   2                      default:
+ 632   2                              // Send Stall if unsupported request
+ 633   2                              ForceStall();
+ 634   2                              break;
+ 635   2              }
+ 636   1      
+ 637   1              // If the data packet can't support the size of the
+ 638   1              // data being sent back, truncate it
+ 639   1              if ((LOBYTE(Setup.wLength) < DataSize) && (HIBYTE(Setup.wLength) == 0))
+ 640   1              {
+ 641   2                      DataSize = LOBYTE(Setup.wLength);
+ 642   2              }
+ 643   1      
+ 644   1         // Indicate data ready, set transmit, and reset counter
+ 645   1              if (EpStatus[0] != EP_STALL)
+ 646   1              {
+ 647   2                      WriteUSBControlByte(E0CSR, rbSOPRDY);
+ 648   2                      EpStatus[0] = EP_TX;
+ 649   2                      DataSent = 0;
+ 650   2              }
+ 651   1      }
+ 652          
+ 653          
+ 654          //-----------------------------------------------------------------------------
+ 655          // GetConfiguration
+ 656          //-----------------------------------------------------------------------------
+ 657          //
+ 658          // Return Value : None
+ 659          // Parameters   : None
+ 660          //
+ 661          // This routine returns current configuration value
+ 662          //
+ 663          //-----------------------------------------------------------------------------
+ 664          void GetConfiguration()                   
+ 665          {
+ 666   1              // If the device is configured, then return value 0x01
+ 667   1              // since this firmware only supports one configuration
+ 668   1              if (USBState == DEV_CONFIGURED)          
+ 669   1              {
+ 670   2                      DataPtr = &ONES_PACKET;
+ 671   2                      DataSize = 1;
+ 672   2              }
+ 673   1      
+ 674   1              // If the device is in address state, it is not
+C51 COMPILER V8.18   USBIO                                                                 01/09/2011 12:30:01 PAGE 12  
+
+ 675   1              // configured, so return 0x00
+ 676   1              if (USBState == DEV_ADDRESS)
+ 677   1              {
+ 678   2                      DataPtr = &ZERO_PACKET;
+ 679   2                      DataSize = 1;
+ 680   2              }
+ 681   1      
+ 682   1              // If EP0 is not stalled, transmit data
+ 683   1              if (EpStatus[0] != EP_STALL)
+ 684   1              {
+ 685   2                      IndicateDataReady();
+ 686   2                      EpStatus[0] = EP_TX;
+ 687   2      
+ 688   2                      // Reset the data sent counter
+ 689   2                      DataSent = 0;
+ 690   2              }
+ 691   1      }
+ 692          
+ 693          
+ 694          //-----------------------------------------------------------------------------
+ 695          // SetConfiguration
+ 696          //-----------------------------------------------------------------------------
+ 697          //
+ 698          // Return Value : None
+ 699          // Parameters   : None
+ 700          //
+ 701          // This routine allows host to change current device configuration value
+ 702          //
+ 703          //-----------------------------------------------------------------------------
+ 704          void SetConfiguration()                   
+ 705          {
+ 706   1              // Any positive configuration request
+ 707   1              // results in configuration being set to 1
+ 708   1              if (LOBYTE(Setup.wValue) > 0)
+ 709   1              {
+ 710   2                      // Set the state to configured
+ 711   2                      USBState = DEV_CONFIGURED;
+ 712   2      
+ 713   2                      // Set endpoint status to idle (enabled)
+ 714   2                      EpStatus[1] = EP_IDLE;
+ 715   2                      EpStatus[2] = EP_IDLE;
+ 716   2      
+ 717   2                      // Set DIRSEL to indicate Endpoint 1 is IN
+ 718   2                      WriteUSBControlByte(INDEX, 1);
+ 719   2                      WriteUSBControlByte(EINCSR2, rbInDIRSEL);
+ 720   2      
+ 721   2                      // Put first data packet on FIFO
+ 722   2                      HandleIn1();
+ 723   2      
+ 724   2                      // Set index back to endpoint 0
+ 725   2                      WriteUSBControlByte(INDEX, 0);
+ 726   2              }
+ 727   1              else
+ 728   1              {
+ 729   2                      USBState = DEV_ADDRESS;               // Unconfigures device by setting state to
+ 730   2                      EpStatus[1] = EP_HALT;                // address, and changing endpoint 1 and 2
+ 731   2                      EpStatus[2] = EP_HALT;                // status to halt
+ 732   2              }
+ 733   1      
+ 734   1              // Show that data is ready
+ 735   1              IndicateDataReady();
+ 736   1      }
+C51 COMPILER V8.18   USBIO                                                                 01/09/2011 12:30:01 PAGE 13  
+
+ 737          
+ 738          
+ 739          //-----------------------------------------------------------------------------
+ 740          // GetInterface
+ 741          //-----------------------------------------------------------------------------
+ 742          //
+ 743          // Return Value : None
+ 744          // Parameters   : None
+ 745          //
+ 746          // This routine returns 0x00, since only one interface is supported by 
+ 747          // this firmware
+ 748          //
+ 749          //-----------------------------------------------------------------------------
+ 750          void GetInterface()
+ 751          {
+ 752   1              // Return 0x00 to host                                           
+ 753   1              DataPtr = &ZERO_PACKET;
+ 754   1              DataSize = 1;
+ 755   1      
+ 756   1              // If EP0 is not stalled, transmit data
+ 757   1              if (EpStatus[0] != EP_STALL)
+ 758   1              {
+ 759   2                      IndicateDataReady();
+ 760   2                      EpStatus[0] = EP_TX;
+ 761   2      
+ 762   2                      // Reset the data sent counter
+ 763   2                      DataSent = 0;
+ 764   2              }
+ 765   1      }
+ 766          
+ 767          
+ 768          //-----------------------------------------------------------------------------
+ 769          // SetInterface
+ 770          //-----------------------------------------------------------------------------
+ 771          //
+ 772          // Return Value : None
+ 773          // Parameters   : None
+ 774          //
+ 775          // This routine allows host to change current device configuration value
+ 776          //
+ 777          //-----------------------------------------------------------------------------
+ 778          void SetInterface()
+ 779          {
+ 780   1              // Show that data is ready
+ 781   1              IndicateDataReady();
+ 782   1      }
+ 783          
+ 784          
+ 785          //-----------------------------------------------------------------------------
+ 786          // ForceStall
+ 787          //-----------------------------------------------------------------------------
+ 788          //
+ 789          // Return Value : None
+ 790          // Parameters   : None
+ 791          //
+ 792          // Force a procedural stall to be sent to the host
+ 793          //
+ 794          //-----------------------------------------------------------------------------
+ 795          void ForceStall()
+ 796          {
+ 797   1         WriteUSBControlByte(INDEX, 0);
+ 798   1         WriteUSBControlByte(E0CSR, rbSDSTL);
+C51 COMPILER V8.18   USBIO                                                                 01/09/2011 12:30:01 PAGE 14  
+
+ 799   1         EpStatus[0] = EP_STALL;
+ 800   1      }
+ 801          
+ 802          
+ 803          //-----------------------------------------------------------------------------
+ 804          // IndicateDataReady
+ 805          //-----------------------------------------------------------------------------
+ 806          //
+ 807          // Return Value:        None
+ 808          // Parameters:          None
+ 809          // 
+ 810          // Writes a byte to the USB Endpoint 0 to indicate
+ 811          // that data is ready 
+ 812          //
+ 813          //-----------------------------------------------------------------------------
+ 814          void IndicateDataReady()
+ 815          {
+ 816   1              if (EpStatus[0] != EP_STALL)
+ 817   1              {
+ 818   2                      WriteUSBControlByte(E0CSR, (rbSOPRDY | rbDATAEND));
+ 819   2              }
+ 820   1      }
+ 821          
+ 822          
+ 823          //-----------------------------------------------------------------------------
+ 824          // ReadFromFIFO
+ 825          //-----------------------------------------------------------------------------
+ 826          //
+ 827          // Return Value:        None
+ 828          // Parameters:          U8 addr
+ 829          //                                      U16 numBytes
+ 830          //                                      U8* pData
+ 831          // 
+ 832          // Reads bytes from the USB target FIFO.
+ 833          //
+ 834          //-----------------------------------------------------------------------------
+ 835          void ReadFromFIFO(U8 addr, U16 numBytes, U8* pData)
+ 836          {
+ 837   1              // Local variables
+ 838   1              int i;
+ 839   1      
+ 840   1              // If the bytes requested is positive, read it
+ 841   1              if (numBytes > 0)
+ 842   1              {
+ 843   2                      // Read numBytes from the selected FIFO
+ 844   2                      for(i = 0; i < numBytes; i++)
+ 845   2                      {
+ 846   3                              // Wait for BUSY to go to 0
+ 847   3                              while (USB0ADR & 0x80) { NOP(); }
+ 848   3      
+ 849   3                              // Set the address from which to read
+ 850   3                              USB0ADR = addr | 0x80;
+ 851   3      
+ 852   3                              // Wait for BUSY to go to 0
+ 853   3                              while (USB0ADR & 0x80) { NOP(); }
+ 854   3      
+ 855   3                              // Copy the data byte
+ 856   3                              pData[i] = USB0DAT;
+ 857   3                      }
+ 858   2      
+ 859   2                      // Finally, clear the read address
+ 860   2                      USB0ADR = 0;
+C51 COMPILER V8.18   USBIO                                                                 01/09/2011 12:30:01 PAGE 15  
+
+ 861   2              }
+ 862   1      }
+ 863          
+ 864          
+ 865          //-----------------------------------------------------------------------------
+ 866          // WriteToFIFO
+ 867          //-----------------------------------------------------------------------------
+ 868          //
+ 869          // Return Value:        None
+ 870          // Parameters:          U8 addr
+ 871          //                                      U16 numBytes
+ 872          //                                      U8* pData
+ 873          // 
+ 874          // Writes bytes to the USB target FIFO.
+ 875          //
+ 876          //-----------------------------------------------------------------------------
+ 877          void WriteToFIFO(U8 addr, U16 numBytes, U8* pData)
+ 878          {
+ 879   1              // Local variables
+ 880   1              int i;
+ 881   1      
+ 882   1         // If the number of bytes to write is positive, do it
+ 883   1              if (numBytes > 0)
+ 884   1              {
+ 885   2                      // Wait for BUSY to go to 0
+ 886   2                      while (USB0ADR & 0x80) { NOP(); }
+ 887   2      
+ 888   2                      // Set the address to which to write
+ 889   2                      USB0ADR = addr;
+ 890   2      
+ 891   2                      // Write numBytes to the selected FIFO
+ 892   2                      for(i = 0; i < numBytes; i++)
+ 893   2                      {
+ 894   3                              // Write the data
+ 895   3                              USB0DAT = pData[i];
+ 896   3      
+ 897   3                              // Wait for BUSY to go to 0
+ 898   3                              while (USB0ADR & 0x80) { NOP(); }
+ 899   3                      }
+ 900   2              }
+ 901   1      }
+ 902          
+ 903          
+ 904          //-----------------------------------------------------------------------------
+ 905          // WriteUSBControlByte 
+ 906          //-----------------------------------------------------------------------------
+ 907          //
+ 908          // Return Value:        None
+ 909          // Parameters:          U8 ctlAddr
+ 910          //                                      U8 input
+ 911          // 
+ 912          // Writes a byte to the USB target address..
+ 913          //
+ 914          //-----------------------------------------------------------------------------
+ 915          void WriteUSBControlByte(U8 ctlAddr, U8 input)
+ 916          {
+ 917   1              // Poll for USB ready
+ 918   1              while(USB0ADR & 0x80) { NOP(); }
+ 919   1      
+ 920   1              // Set the address of the USB
+ 921   1              USB0ADR = ctlAddr;
+ 922   1      
+C51 COMPILER V8.18   USBIO                                                                 01/09/2011 12:30:01 PAGE 16  
+
+ 923   1              // Set the data in the USB register
+ 924   1              USB0DAT = input;
+ 925   1      }
+ 926          
+ 927          
+ 928          //-----------------------------------------------------------------------------
+ 929          // ReadUSBControlByte 
+ 930          //-----------------------------------------------------------------------------
+ 931          //
+ 932          // Return Value:        U8 
+ 933          // Parameters:          U8 ctlAddr
+ 934          // 
+ 935          // Reads a byte from the USB target address..
+ 936          //
+ 937          //-----------------------------------------------------------------------------
+ 938          U8 ReadUSBControlByte(U8 ctlAddr)
+ 939          {
+ 940   1              // Poll for USB ready
+ 941   1              while(USB0ADR & 0x80) { NOP(); }
+ 942   1      
+ 943   1              // Set the address of the USB
+ 944   1              USB0ADR = (0x80 | ctlAddr);
+ 945   1      
+ 946   1              // Poll for USB ready
+ 947   1              while(USB0ADR & 0x80) { NOP(); }
+ 948   1      
+ 949   1              // Return the data in the USB register
+ 950   1              return USB0DAT;
+ 951   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1333    ----
+   CONSTANT SIZE    =      4    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     21      18
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

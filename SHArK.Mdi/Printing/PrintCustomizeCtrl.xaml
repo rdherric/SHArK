@@ -1,0 +1,32 @@
+﻿<UserControl x:Class="SHArK.Mdi.Printing.PrintCustomizeCtrl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:RES="http://schemas.rdh2.com/shark/common"
+    Width="400" Height="100" Background="{x:Static SystemColors.ControlBrush}">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition />
+            <ColumnDefinition />
+        </Grid.ColumnDefinitions>
+        
+        <GroupBox Grid.Column="0" Header="{x:Static RES:Strings.ChartsToPrint}" Margin="0,0,3,0" 
+                  BorderBrush="{x:Static SystemColors.ControlDarkBrush}">
+            <StackPanel>
+                <RadioButton Margin="10" IsChecked="true" Content="{x:Static RES:Strings.PrintCurrent}" />
+                <RadioButton x:Name="_printAll" Margin="10" Content="{x:Static RES:Strings.PrintAll}" />
+            </StackPanel>
+        </GroupBox>
+        
+        <GroupBox Grid.Column="1" Header="{x:Static RES:Strings.ChartSize}" Margin="3,0,0,0" 
+                  BorderBrush="{x:Static SystemColors.ControlDarkBrush}">
+            <StackPanel VerticalAlignment="Top" Orientation="Horizontal" Margin="5">
+                <ComboBox x:Name="_perPage" IsEditable="False" Width="45">
+                    <ComboBoxItem IsSelected="True">1</ComboBoxItem>
+                    <ComboBoxItem>2</ComboBoxItem>
+                    <ComboBoxItem>4</ComboBoxItem>
+                </ComboBox>
+                <Label Content="{x:Static RES:Strings.ChartsPerPage}" />
+            </StackPanel>            
+        </GroupBox>
+    </Grid>
+</UserControl>

@@ -1,0 +1,7 @@
+﻿<APD:DocumentWindow x:Class="SHArK.Views.Windows.SpectrumView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:APD="http://schemas.actiprosoftware.com/winfx/xaml/docking"
+    Height="300" Width="300">
+    
+</APD:DocumentWindow>

@@ -1,0 +1,81 @@
+C51 COMPILER V8.18   GLOBALS                                                               01/09/2011 12:30:01 PAGE 1   
+
+
+C51 COMPILER V8.18, COMPILATION OF MODULE GLOBALS
+OBJECT MODULE PLACED IN Globals.OBJ
+COMPILER INVOKED BY: C:\SiLabs\MCU\IDEfiles\C51\BIN\C51.exe Globals.c DB OE BR INCDIR(C:\SiLabs\MCU\Inc)
+
+line level    source
+
+   1          //-----------------------------------------------------------------------------
+   2          // Globals.c
+   3          //-----------------------------------------------------------------------------
+   4          // Copyright (C) RDH2 Science, LLC
+   5          // http://www.rdh2.com
+   6          //
+   7          // Globals.c contains the variable definitions used by the  
+   8          // other source files.
+   9          //
+  10          // Target:         C8051F32x
+  11          // Tool chain:     Keil compiler
+  12          // Command Line:   None
+  13          //
+  14          // Release 1.0 / Not Released
+  15          //    -Initial Revision
+  16          
+  17          
+  18          //-----------------------------------------------------------------------------
+  19          // Includes
+  20          //-----------------------------------------------------------------------------
+  21          #include <compiler_defs.h>
+  22          #include <C8051F320_defs.h>
+  23          
+  24          
+  25          //-----------------------------------------------------------------------------
+  26          // Global Variables
+  27          //-----------------------------------------------------------------------------
+  28          // Boolean to determine DAC is being written to in ISR
+  29          U8 dacWrite = 0;
+  30          
+  31          // Boolean to determine ADC is being written to in ISR
+  32          U8 adcWrite = 0;
+  33          
+  34          // Counter for bytes output through SPI
+  35          U8 bytesWritten = 0;
+  36          
+  37          // High ADC measurement byte
+  38          U8 adcHigh = 0;
+  39          
+  40          // Low ADC measurement byte
+  41          U8 adcLow = 0;
+  42          
+  43          // Delay variable used in a few places
+  44          U16 delay = 0;
+  45          
+  46          
+  47          
+  48          //-----------------------------------------------------------------------------
+  49          // Extern Global Variables
+  50          //-----------------------------------------------------------------------------
+  51          //extern U8 dacWrite;
+  52          //extern U8 adcWrite;
+  53          //extern U8 bytesWritten;
+  54          //extern U8 adcHigh;
+  55          //extern U8 adcLow;
+C51 COMPILER V8.18   GLOBALS                                                               01/09/2011 12:30:01 PAGE 2   
+
+  56          //extern U16 delay;
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   ----    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      7    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

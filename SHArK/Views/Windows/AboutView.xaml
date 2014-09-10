@@ -1,0 +1,34 @@
+﻿<Window x:Class="SHArK.Views.Windows.AboutView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:RES="clr-namespace:SHArK.Resources"
+    xmlns:RW="http://schemas.rdh2.com/windows/markup"
+    Icon="{RW:ImageResource ImagePath={x:Static RES:Strings.IconImageSource}}"
+    ResizeMode="NoResize" SizeToContent="WidthAndHeight" WindowStartupLocation="CenterOwner">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="235" />
+            <ColumnDefinition Width="235" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition />  
+            <RowDefinition />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Column="0" Grid.Row="0" Margin="10">
+            <TextBlock Margin="10" Text="{Binding Title}" />
+            <StackPanel Orientation="Horizontal" Margin="10">
+                <TextBlock Text="{x:Static RES:Strings.Version}" />
+                <TextBlock Text=" " />
+                <TextBlock Text="{Binding Version}" />
+            </StackPanel>
+            <TextBlock Margin="10" Text="{Binding Copyright}" />
+            <TextBlock Margin="10" Text="{Binding CompanyName}" />
+        </StackPanel>
+        
+        <Image Grid.Column="1" Grid.Row="0" Margin="20" Height="100" Width="100" 
+               Source="{RW:ImageResource ImagePath={x:Static RES:Strings.HomeButtonImageSource}}" />
+
+        <TextBlock Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" Margin="20" Text="{Binding Description}" TextWrapping="Wrap" />
+    </Grid>
+</Window>

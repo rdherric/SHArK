@@ -1,0 +1,603 @@
+C51 COMPILER V8.18   USBSTANDARDREQUESTS                                                   01/01/2011 16:04:21 PAGE 1   
+
+
+C51 COMPILER V8.18, COMPILATION OF MODULE USBSTANDARDREQUESTS
+OBJECT MODULE PLACED IN USBStandardRequests.OBJ
+COMPILER INVOKED BY: C:\SiLabs\MCU\IDEfiles\C51\BIN\C51.exe USBStandardRequests.c DB OE BR INCDIR(c:\SiLabs\MCU\Inc)
+
+line level    source
+
+   1          //-----------------------------------------------------------------------------
+   2          // USBStandardRequests.c
+   3          //-----------------------------------------------------------------------------
+   4          //
+   5          // Program Description:
+   6          //
+   7          // This source file contains the subroutines used to handle incoming 
+   8          // setup packets. These are called by Handle_Setup in USB_ISR.c and used for 
+   9          // USB chapter 9 compliance.
+  10          //
+  11          // Target:         C8051F32x
+  12          // Tool chain:     Keil C51 7.50 / Keil EVAL C51
+  13          //                 Silicon Laboratories IDE version 2.6
+  14          // Project Name:   SHArK
+  15          
+  16          //-----------------------------------------------------------------------------
+  17          // Includes
+  18          //-----------------------------------------------------------------------------
+  19          #include <c8051F320.h>
+  20          #include "USBRegister.h"
+  21          #include "USBDescriptor.h"
+*** ERROR C141 IN LINE 21 OF USBDESCRIPTOR.H: syntax error near 'U8'
+*** ERROR C129 IN LINE 21 OF USBDESCRIPTOR.H: missing ';' before 'bLength'
+  22          
+  23          //-----------------------------------------------------------------------------
+  24          // Externs
+  25          //-----------------------------------------------------------------------------
+  26          // Device Descriptor definitions from USBDescriptor.c
+  27          extern device_descriptor DeviceDesc;            
+  28          extern configuration_descriptor ConfigDesc;
+  29          extern interface_descriptor InterfaceDesc;
+  30          extern endpoint_descriptor Endpoint1Desc;
+  31          extern endpoint_descriptor Endpoint2Desc;
+  32          extern U8* StringDescTable[];
+  33          extern setup_buffer Setup;             // Buffer for current device request
+  34          
+  35          
+  36          extern unsigned int DataSize;
+  37          extern unsigned int DataSent;
+  38          extern BYTE* DataPtr;
+  39          
+  40          extern BYTE Ep_Status[];               // Contains status bytes for EP 0-2
+  41          
+  42          extern BYTE USB_State;                 // Determines current usb device state
+  43          
+  44          //-----------------------------------------------------------------------------
+  45          // Global Variables
+  46          //-----------------------------------------------------------------------------
+  47          
+  48          // These are response packets used for communication with host
+  49          code BYTE ONES_PACKET[2] = {0x01, 0x00};        
+  50          code BYTE ZERO_PACKET[2] = {0x00, 0x00};        
+  51          
+  52          //-----------------------------------------------------------------------------
+  53          // Support Subroutines
+C51 COMPILER V8.18   USBSTANDARDREQUESTS                                                   01/01/2011 16:04:21 PAGE 2   
+
+  54          //-----------------------------------------------------------------------------
+  55          
+  56          //-----------------------------------------------------------------------------
+  57          // Get_Status
+  58          //-----------------------------------------------------------------------------
+  59          //
+  60          // Return Value : None
+  61          // Parameters   : None
+  62          //
+  63          // This routine returns a two byte status packet to the host
+  64          //
+  65          //-----------------------------------------------------------------------------
+  66          void Get_Status(void)                  
+  67          {                                      
+  68          
+  69             if (Setup.wValue.c[MSB] || Setup.wValue.c[LSB] ||
+  70                                                          
+  71             // If non-zero return length or data length not  equal to 2 then send a stall
+  72             // indicating invalid request
+  73             Setup.wLength.c[MSB]    || (Setup.wLength.c[LSB] != 2))                                               
+  74             {                                            
+  75                Force_Stall();
+  76             }
+  77          
+  78             // Determine if recipient was device, interface, or EP
+  79             switch(Setup.bmRequestType)                  
+  80             {
+  81                // If recipient was device
+  82                case OUT_DEVICE:                          
+  83                   if (Setup.wIndex.c[MSB] || Setup.wIndex.c[LSB])
+  84                   {
+  85                              // Send stall if request is invalid
+  86                      Force_Stall();             
+  87                   }
+  88                   else
+  89                   {
+  90                              // Otherwise send 0x00, indicating bus power and no
+  91                                  // remote wake-up supported
+  92                      DataPtr = (BYTE*)&ZERO_PACKET;      
+  93                      DataSize = 2;                       
+  94                   }
+  95                   break;
+  96          
+  97                // See if recipient was interface
+  98                case OUT_INTERFACE:                       
+  99                       // Only valid if device is configured and non-zero index
+ 100                   if ((USB_State != DEV_CONFIGURED) ||
+ 101                        Setup.wIndex.c[MSB] || Setup.wIndex.c[LSB])                                                
+ 102                   {
+ 103                              // Otherwise send stall to host
+ 104                      Force_Stall();                      
+ 105                   }
+ 106                   else
+ 107                   {
+ 108                              // Status packet always returns 0x00
+ 109                      DataPtr = (BYTE*)&ZERO_PACKET;      
+ 110                      DataSize = 2;
+ 111                   }
+ 112                   break;
+ 113          
+ 114                // See if recipient was an endpoint
+ 115                case OUT_ENDPOINT:                        
+C51 COMPILER V8.18   USBSTANDARDREQUESTS                                                   01/01/2011 16:04:21 PAGE 3   
+
+ 116                       // Make sure device is configured and index msb = 0x00
+ 117                   if ((USB_State != DEV_CONFIGURED) || Setup.wIndex.c[MSB])                   
+ 118                   {                                     
+ 119                      Force_Stall();              // otherwise return stall to host
+ 120                   }
+ 121                   else
+ 122                   {
+ 123                      // Handle case if request is directed to EP 1
+ 124                      if (Setup.wIndex.c[LSB] == IN_EP1)  
+ 125                      {
+ 126                         if (Ep_Status[1] == EP_HALT)
+ 127                         {                                
+ 128                                        // If endpoint is halted, return 0x01,0x00
+ 129                            DataPtr = (BYTE*)&ONES_PACKET;
+ 130                            DataSize = 2;
+ 131                         }
+ 132                         else
+ 133                         {
+ 134                                        // Otherwise return 0x00,0x00 to indicate endpoint active
+ 135                            DataPtr = (BYTE*)&ZERO_PACKET;
+ 136                            DataSize = 2;
+ 137                         }
+ 138                      }
+ 139                      else
+ 140                      {
+ 141                                     // If request is directed to endpoint 2, send either
+ 142                                     // 0x01,0x00 if endpoint halted or 0x00,0x00 if endpoint is active
+ 143                         if (Setup.wIndex.c[LSB] == OUT_EP2)
+ 144                                                          
+ 145                         {                                
+ 146                            if (Ep_Status[2] == EP_HALT)
+ 147                            {
+ 148                               DataPtr = (BYTE*)&ONES_PACKET;
+ 149                               DataSize = 2;
+ 150                            }
+ 151                            else
+ 152                            {
+ 153                               DataPtr = (BYTE*)&ZERO_PACKET;
+ 154                               DataSize = 2;
+ 155                            }
+ 156                         }
+ 157                         else
+ 158                         {
+ 159                            Force_Stall();       // Send stall if unexpected data
+ 160                         }
+ 161                      }
+ 162                   }
+ 163                   break;
+ 164          
+ 165                default:
+ 166                   Force_Stall();
+ 167                   break;
+ 168             }
+ 169             if (Ep_Status[0] != EP_STALL)
+ 170             {
+ 171                // Set serviced Setup Packet, Endpoint 0 intransmit mode, 
+ 172                    // and reset DataSent counter
+ 173                POLL_WRITE_BYTE(E0CSR, rbSOPRDY);        
+ 174                Ep_Status[0] = EP_TX;                     
+ 175                DataSent = 0;
+ 176             }
+ 177          }
+C51 COMPILER V8.18   USBSTANDARDREQUESTS                                                   01/01/2011 16:04:21 PAGE 4   
+
+ 178          
+ 179          
+ 180          //-----------------------------------------------------------------------------
+ 181          // Clear_Feature
+ 182          //-----------------------------------------------------------------------------
+ 183          //
+ 184          // Return Value : None
+ 185          // Parameters   : None
+ 186          //
+ 187          // This routine can clear Halt Endpoint features on endpoint 1 and 2.
+ 188          //
+ 189          //-----------------------------------------------------------------------------
+ 190          void Clear_Feature()                            
+ 191          {                                               
+ 192          
+ 193             if ((USB_State != DEV_CONFIGURED)          ||// Send procedural stall if device isn't configured
+ 194             (Setup.bmRequestType == IN_DEVICE)         ||// or request is made to host(remote wakeup not supported)
+ 195             (Setup.bmRequestType == IN_INTERFACE)      ||// or request is made to interface
+ 196             Setup.wValue.c[MSB]  || Setup.wIndex.c[MSB]||// or msbs of value or index set to non-zero value
+ 197             Setup.wLength.c[MSB] || Setup.wLength.c[LSB])// or data length set to non-zero.
+ 198             {
+ 199                Force_Stall();
+ 200             }
+ 201          
+ 202             else
+ 203             {
+ 204                if ((Setup.bmRequestType == IN_ENDPOINT)&&// Verify that packet was directed at an endpoint
+ 205                (Setup.wValue.c[LSB] == ENDPOINT_HALT)  &&// the feature selected was HALT_ENDPOINT
+ 206                ((Setup.wIndex.c[LSB] == IN_EP1) ||       // and that the request was directed at EP 1 in
+ 207                (Setup.wIndex.c[LSB] == OUT_EP2)))        // or EP 2 out
+ 208                {
+ 209                   if (Setup.wIndex.c[LSB] == IN_EP1)
+ 210                   {
+ 211                      POLL_WRITE_BYTE (INDEX, 1);         // Clear feature endpoint 1 halt
+ 212                      POLL_WRITE_BYTE (EINCSR1, rbInCLRDT);
+ 213                      Ep_Status[1] = EP_IDLE;             // Set endpoint 1 status back to idle
+ 214                   }
+ 215                   else
+ 216                   {
+ 217                      POLL_WRITE_BYTE (INDEX, 2);         // Clear feature endpoint 2 halt
+ 218                      POLL_WRITE_BYTE (EOUTCSR1, rbOutCLRDT);
+ 219                      Ep_Status[2] = EP_IDLE;             // Set endpoint 2 status back to idle
+ 220                   }
+ 221                }
+ 222                else
+ 223                {
+ 224                   Force_Stall();                         // Send procedural stall
+ 225                }
+ 226             }
+ 227             POLL_WRITE_BYTE(INDEX, 0);                   // Reset Index to 0
+ 228             if (Ep_Status[0] != EP_STALL)
+ 229             {
+ 230                POLL_WRITE_BYTE(E0CSR, (rbSOPRDY | rbDATAEND));
+ 231                                                          // Set Serviced Out packet ready and data end to
+ 232                                                          // indicate transaction is over
+ 233             }
+ 234          }
+ 235          
+ 236          
+ 237          //-----------------------------------------------------------------------------
+ 238          // Set_Feature
+ 239          //-----------------------------------------------------------------------------
+C51 COMPILER V8.18   USBSTANDARDREQUESTS                                                   01/01/2011 16:04:21 PAGE 5   
+
+ 240          //
+ 241          // Return Value : None
+ 242          // Parameters   : None
+ 243          //
+ 244          // This routine will set the EP Halt feature for endpoints 1 and 2
+ 245          //
+ 246          //-----------------------------------------------------------------------------
+ 247          void Set_Feature(void)                          
+ 248          {                                             
+ 249          
+ 250             if ((USB_State != DEV_CONFIGURED)          ||// Make sure device is configured, setup data
+ 251             (Setup.bmRequestType == IN_DEVICE)         ||// is all valid and that request is directed at
+ 252             (Setup.bmRequestType == IN_INTERFACE)      ||// an endpoint
+ 253             Setup.wValue.c[MSB]  || Setup.wIndex.c[MSB]||
+ 254             Setup.wLength.c[MSB] || Setup.wLength.c[LSB])
+ 255             {
+ 256                Force_Stall();                            // Otherwise send stall to host
+ 257             }
+ 258          
+ 259             else
+ 260             {
+ 261                if ((Setup.bmRequestType == IN_ENDPOINT)&&// Make sure endpoint exists and that halt
+ 262                (Setup.wValue.c[LSB] == ENDPOINT_HALT)  &&// endpoint feature is selected
+ 263                ((Setup.wIndex.c[LSB] == IN_EP1)        ||
+ 264                (Setup.wIndex.c[LSB] == OUT_EP2)))
+ 265                {
+ 266                   if (Setup.wIndex.c[LSB] == IN_EP1)
+ 267                   {
+ 268                      POLL_WRITE_BYTE (INDEX, 1);         // Set feature endpoint 1 halt
+ 269                      POLL_WRITE_BYTE (EINCSR1, rbInSDSTL);
+ 270                      Ep_Status[1] = EP_HALT;
+ 271                   }
+ 272                   else
+ 273                   {
+ 274                      POLL_WRITE_BYTE (INDEX, 2);         // Set feature Ep2 halt
+ 275                      POLL_WRITE_BYTE (EOUTCSR1, rbOutSDSTL);
+ 276                      Ep_Status[2] = EP_HALT;
+ 277                   }
+ 278                }
+ 279                else
+ 280                {
+ 281                   Force_Stall();                         // Send procedural stall
+ 282                }
+ 283             }
+ 284             POLL_WRITE_BYTE(INDEX, 0);
+ 285             if (Ep_Status[0] != EP_STALL)
+ 286             {
+ 287                POLL_WRITE_BYTE(E0CSR, (rbSOPRDY | rbDATAEND));
+ 288                                                          // Indicate setup packet has been serviced
+ 289             }
+ 290          }
+ 291          
+ 292          
+ 293          //-----------------------------------------------------------------------------
+ 294          // Set_Address
+ 295          //-----------------------------------------------------------------------------
+ 296          //
+ 297          // Return Value : None
+ 298          // Parameters   : None
+ 299          //
+ 300          // Set new function address
+ 301          //
+C51 COMPILER V8.18   USBSTANDARDREQUESTS                                                   01/01/2011 16:04:21 PAGE 6   
+
+ 302          //-----------------------------------------------------------------------------
+ 303          void Set_Address(void)                          
+ 304          {
+ 305             if ((Setup.bmRequestType != IN_DEVICE)     ||// Request must be directed to device
+ 306             Setup.wIndex.c[MSB]  || Setup.wIndex.c[LSB]||// with index and length set to zero.
+ 307             Setup.wLength.c[MSB] || Setup.wLength.c[LSB]||
+ 308             Setup.wValue.c[MSB]  || (Setup.wValue.c[LSB] & 0x80))
+ 309             {
+ 310               Force_Stall();                             // Send stall if setup data invalid
+ 311             }
+ 312          
+ 313             Ep_Status[0] = EP_ADDRESS;                   // Set endpoint zero to update address next status phase
+ 314             if (Setup.wValue.c[LSB] != 0)
+ 315             {
+ 316                USB_State = DEV_ADDRESS;                  // Indicate that device state is now address
+ 317             }
+ 318             else
+ 319             {
+ 320                USB_State = DEV_DEFAULT;                  // If new address was 0x00, return device to default
+ 321             }                                            // state
+ 322             if (Ep_Status[0] != EP_STALL)
+ 323             {
+ 324                POLL_WRITE_BYTE(E0CSR, (rbSOPRDY | rbDATAEND));
+ 325                                                          // Indicate setup packet has been serviced
+ 326             }
+ 327          }
+ 328          
+ 329          
+ 330          //-----------------------------------------------------------------------------
+ 331          // Get_Descriptor
+ 332          //-----------------------------------------------------------------------------
+ 333          //
+ 334          // Return Value : None
+ 335          // Parameters   : None
+ 336          //
+ 337          // This routine sets the data pointer and size to correct 
+ 338          // descriptor and sets the endpoint status to transmit
+ 339          //
+ 340          //-----------------------------------------------------------------------------
+ 341          void Get_Descriptor(void)                       
+ 342          {                                              
+ 343          
+ 344             switch(Setup.wValue.c[MSB])                  // Determine which type of descriptor
+ 345             {                                            // was requested, and set data ptr and
+ 346                case DSC_DEVICE:                          // size accordingly
+ 347                   DataPtr = (BYTE*) &DeviceDesc;
+ 348                   DataSize = DeviceDesc.bLength;
+ 349                   break;
+ 350          
+ 351                case DSC_CONFIG:
+ 352                   DataPtr = (BYTE*) &ConfigDesc;
+ 353                                                          // Compiler Specific - The next statement reverses the
+ 354                                                          // bytes in the configuration descriptor for the compiler
+ 355                   DataSize = ConfigDesc.wTotalLength.c[MSB] + 256*ConfigDesc.wTotalLength.c[LSB];
+ 356                   break;
+ 357          
+ 358                case DSC_STRING:
+ 359                   DataPtr = StringDescTable[Setup.wValue.c[LSB]];
+ 360                                                          // Can have a maximum of 255 strings
+ 361                   DataSize = *DataPtr;
+ 362                   break;
+ 363          
+C51 COMPILER V8.18   USBSTANDARDREQUESTS                                                   01/01/2011 16:04:21 PAGE 7   
+
+ 364                case DSC_INTERFACE:
+ 365                   DataPtr = (BYTE*) &InterfaceDesc;
+ 366                   DataSize = InterfaceDesc.bLength;
+ 367                   break;
+ 368          
+ 369                case DSC_ENDPOINT:
+ 370                   if ((Setup.wValue.c[LSB] == IN_EP1) ||
+ 371                   (Setup.wValue.c[LSB] == OUT_EP2))
+ 372                   {
+ 373                      if (Setup.wValue.c[LSB] == IN_EP1)
+ 374                      {
+ 375                         DataPtr = (BYTE*) &Endpoint1Desc;
+ 376                         DataSize = Endpoint1Desc.bLength;
+ 377                      }
+ 378                      else
+ 379                      {
+ 380                         DataPtr = (BYTE*) &Endpoint2Desc;
+ 381                         DataSize = Endpoint2Desc.bLength;
+ 382                      }
+ 383                   }
+ 384                   else
+ 385                   {
+ 386                      Force_Stall();
+ 387                   }
+ 388                   break;
+ 389          
+ 390                default:
+ 391                   Force_Stall();                         // Send Stall if unsupported request
+ 392                   break;
+ 393             }
+ 394          
+ 395             if (Setup.wValue.c[MSB] == DSC_DEVICE ||     // Verify that the requested descriptor is
+ 396             Setup.wValue.c[MSB] == DSC_CONFIG     ||     // valid
+ 397             Setup.wValue.c[MSB] == DSC_STRING     ||
+ 398             Setup.wValue.c[MSB] == DSC_INTERFACE  ||
+ 399             Setup.wValue.c[MSB] == DSC_ENDPOINT)
+ 400             {
+ 401                if ((Setup.wLength.c[LSB] < DataSize) &&
+ 402                (Setup.wLength.c[MSB] == 0))
+ 403                {
+ 404                   DataSize = Setup.wLength.i;       // Send only requested amount of data
+ 405                }
+ 406             }
+ 407             if (Ep_Status[0] != EP_STALL)                // Make sure endpoint not in stall mode
+ 408             {
+ 409               POLL_WRITE_BYTE(E0CSR, rbSOPRDY);          // Service Setup Packet
+ 410               Ep_Status[0] = EP_TX;                      // Put endpoint in transmit mode
+ 411               DataSent = 0;                              // Reset Data Sent counter
+ 412             }
+ 413          }
+ 414          
+ 415          
+ 416          //-----------------------------------------------------------------------------
+ 417          // Get_Configuration
+ 418          //-----------------------------------------------------------------------------
+ 419          //
+ 420          // Return Value : None
+ 421          // Parameters   : None
+ 422          //
+ 423          // This routine returns current configuration value
+ 424          //
+ 425          //-----------------------------------------------------------------------------
+C51 COMPILER V8.18   USBSTANDARDREQUESTS                                                   01/01/2011 16:04:21 PAGE 8   
+
+ 426          void Get_Configuration(void)                   
+ 427          {
+ 428             if ((Setup.bmRequestType != OUT_DEVICE)    ||// This request must be directed to the device
+ 429             Setup.wValue.c[MSB]  || Setup.wValue.c[LSB]||// with value word set to zero
+ 430             Setup.wIndex.c[MSB]  || Setup.wIndex.c[LSB]||// and index set to zero
+ 431             Setup.wLength.c[MSB] || (Setup.wLength.c[LSB] != 1))// and setup length set to one
+ 432             {
+ 433                Force_Stall();                            // Otherwise send a stall to host
+ 434             }
+ 435          
+ 436             else
+ 437             {
+ 438                if (USB_State == DEV_CONFIGURED)          // If the device is configured, then return value 0x01
+ 439                {                                         // since this software only supports one configuration
+ 440                   DataPtr = (BYTE*)&ONES_PACKET;
+ 441                   DataSize = 1;
+ 442                }
+ 443                if (USB_State == DEV_ADDRESS)             // If the device is in address state, it is not
+ 444                {                                         // configured, so return 0x00
+ 445                   DataPtr = (BYTE*)&ZERO_PACKET;
+ 446                   DataSize = 1;
+ 447                }
+ 448             }
+ 449             if (Ep_Status[0] != EP_STALL)
+ 450             {
+ 451                POLL_WRITE_BYTE(E0CSR, rbSOPRDY);         // Set Serviced Out Packet bit
+ 452                Ep_Status[0] = EP_TX;                     // Put endpoint into transmit mode
+ 453                DataSent = 0;                             // Reset Data Sent counter to zero
+ 454             }
+ 455          }
+ 456          
+ 457          
+ 458          //-----------------------------------------------------------------------------
+ 459          // Set_Configuration
+ 460          //-----------------------------------------------------------------------------
+ 461          //
+ 462          // Return Value : None
+ 463          // Parameters   : None
+ 464          //
+ 465          // This routine allows host to change current device configuration value
+ 466          //
+ 467          //-----------------------------------------------------------------------------
+ 468          void Set_Configuration(void)                   
+ 469          {                                               
+ 470          
+ 471             if ((USB_State == DEV_DEFAULT)             ||// Device must be addressed before configured
+ 472             (Setup.bmRequestType != IN_DEVICE)         ||// and request recipient must be the device
+ 473             Setup.wIndex.c[MSB]  || Setup.wIndex.c[LSB]||// the index and length words must be zero
+ 474             Setup.wLength.c[MSB] || Setup.wLength.c[LSB] ||
+ 475             Setup.wValue.c[MSB]  || (Setup.wValue.c[LSB] > 1))// This software only supports config = 0,1
+ 476             {
+ 477                Force_Stall();                            // Send stall if setup data is invalid
+ 478             }
+ 479          
+ 480             else
+ 481             {
+ 482                if (Setup.wValue.c[LSB] > 0)              // Any positive configuration request
+ 483                {                                         // results in configuration being set to 1
+ 484                   USB_State = DEV_CONFIGURED;
+ 485                   Ep_Status[1] = EP_IDLE;                // Set endpoint status to idle (enabled)
+ 486                   Ep_Status[2] = EP_IDLE;
+ 487                   POLL_WRITE_BYTE(INDEX, 1);             // Change index to endpoint 1
+C51 COMPILER V8.18   USBSTANDARDREQUESTS                                                   01/01/2011 16:04:21 PAGE 9   
+
+ 488                   POLL_WRITE_BYTE(EINCSR2, rbInDIRSEL);  // Set DIRSEL to indicate endpoint 1 is IN
+ 489                   Handle_In1();                          // Put first data packet on fifo
+ 490                   POLL_WRITE_BYTE(INDEX, 0);             // Set index back to endpoint 0
+ 491                }
+ 492                else
+ 493                {
+ 494                   USB_State = DEV_ADDRESS;               // Unconfigures device by setting state to
+ 495                   Ep_Status[1] = EP_HALT;                // address, and changing endpoint 1 and 2
+ 496                   Ep_Status[2] = EP_HALT;                // status to halt
+ 497                }
+ 498             }
+ 499             if (Ep_Status[0] != EP_STALL)
+ 500             {
+ 501                POLL_WRITE_BYTE(E0CSR, (rbSOPRDY | rbDATAEND));
+ 502                                                          // Indicate setup packet has been serviced
+ 503             }
+ 504          }
+ 505          
+ 506          
+ 507          //-----------------------------------------------------------------------------
+ 508          // Get_Interface
+ 509          //-----------------------------------------------------------------------------
+ 510          //
+ 511          // Return Value : None
+ 512          // Parameters   : None
+ 513          //
+ 514          // This routine returns 0x00, since only one interface is supported by 
+ 515          // this firmware
+ 516          //
+ 517          //-----------------------------------------------------------------------------
+ 518          void Get_Interface(void)                        
+ 519          {                                              
+ 520          
+ 521             if ((USB_State != DEV_CONFIGURED)      ||    // If device is not configured
+ 522             (Setup.bmRequestType != OUT_INTERFACE) ||    // or recipient is not an interface
+ 523             Setup.wValue.c[MSB]  ||Setup.wValue.c[LSB] ||// or non-zero value or index fields
+ 524             Setup.wIndex.c[MSB]  ||Setup.wIndex.c[LSB] ||// or data length not equal to one
+ 525             Setup.wLength.c[MSB] ||(Setup.wLength.c[LSB] != 1))
+ 526             {
+ 527                Force_Stall();                            // Then return stall due to invalid request
+ 528             }
+ 529          
+ 530             else
+ 531             {
+ 532                DataPtr = (BYTE*)&ZERO_PACKET;            // Otherwise, return 0x00 to host
+ 533                DataSize = 1;
+ 534             }
+ 535             if (Ep_Status[0] != EP_STALL)
+ 536             {
+ 537                POLL_WRITE_BYTE(E0CSR, rbSOPRDY);         // Set Serviced Setup packet, put endpoint in transmit
+ 538                Ep_Status[0] = EP_TX;                     // mode and reset Data sent counter
+ 539                DataSent = 0;
+ 540             }
+ 541          }
+ 542          
+ 543          
+ 544          //-----------------------------------------------------------------------------
+ 545          // Set_Interface
+ 546          //-----------------------------------------------------------------------------
+ 547          //
+ 548          // Return Value : None
+ 549          // Parameters   : None
+C51 COMPILER V8.18   USBSTANDARDREQUESTS                                                   01/01/2011 16:04:21 PAGE 10  
+
+ 550          //
+ 551          // This routine allows host to change current device configuration value
+ 552          //
+ 553          //-----------------------------------------------------------------------------
+ 554          void Set_Interface(void)
+ 555          {
+ 556             // Make sure request is directed at interface and all other packet values 
+ 557             // are set to zero
+ 558          
+ 559             if ((Setup.bmRequestType != IN_INTERFACE)  ||
+ 560             Setup.wLength.c[MSB] ||Setup.wLength.c[LSB]|| 
+ 561             Setup.wValue.c[MSB]  ||Setup.wValue.c[LSB] ||
+ 562             Setup.wIndex.c[MSB]  ||Setup.wIndex.c[LSB])
+ 563             {
+ 564                // Otherwise send a stall to host
+ 565                Force_Stall();                            
+ 566             }
+ 567             if (Ep_Status[0] != EP_STALL)
+ 568             {
+ 569                // Indicate setup packet has been serviced
+ 570                POLL_WRITE_BYTE(E0CSR, (rbSOPRDY | rbDATAEND));                                             
+ 571             }
+ 572          }
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  2 ERROR(S)

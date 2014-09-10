@@ -1,0 +1,14 @@
+
+BL51 BANKED LINKER/LOCATER V6.20 - SN: D1SDC-6012SZ
+COPYRIGHT KEIL ELEKTRONIK GmbH 1987 - 2009
+"C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\ChipTesting\Main.obj"  TO "C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\ChipTesting\ChipTesting" RS(256) PL(68) PW(78) 
+
+******************************************************************************
+* RESTRICTED VERSION WITH 1000H BYTE CODE SIZE LIMIT; USED: 023FH BYTE (14%) *
+******************************************************************************
+
+>> 
+>> 
+>> 
+Program Size: data=19.0 xdata=0 code=575
+LINK/LOCATE RUN COMPLETE.  0 WARNING(S),  0 ERROR(S)

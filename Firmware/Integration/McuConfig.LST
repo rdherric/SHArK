@@ -1,0 +1,201 @@
+C51 COMPILER V8.18   MCUCONFIG                                                             01/01/2011 16:10:25 PAGE 1   
+
+
+C51 COMPILER V8.18, COMPILATION OF MODULE MCUCONFIG
+OBJECT MODULE PLACED IN McuConfig.OBJ
+COMPILER INVOKED BY: C:\SiLabs\MCU\IDEfiles\C51\BIN\C51.exe McuConfig.c DB OE BR INCDIR(C:\SiLabs\MCU\Inc)
+
+line level    source
+
+   1          //-----------------------------------------------------------------------------
+   2          // McuConfig.c
+   3          //-----------------------------------------------------------------------------
+   4          // Copyright (C) RDH2 Science, LLC
+   5          // http://www.rdh2.com
+   6          //
+   7          // McuConfig.c contains the functionality required to configure
+   8          // the MCU chip for the potentiostat.
+   9          //
+  10          // Target:         C8051F32x
+  11          // Tool chain:     Keil compiler
+  12          // Command Line:   None
+  13          //
+  14          // Release 1.0 / Not Released
+  15          //    -Initial Revision
+  16          
+  17          
+  18          //-----------------------------------------------------------------------------
+  19          // Includes
+  20          //-----------------------------------------------------------------------------
+  21          #include <compiler_defs.h>
+  22          #include <C8051F320_defs.h>
+  23          #include "McuConfig.h"
+  24          #include "Registers.h"
+  25          
+  26          
+  27          //-----------------------------------------------------------------------------
+  28          // Extern Global Variables
+  29          //-----------------------------------------------------------------------------
+  30          extern U16 delay;
+  31          
+  32          
+  33          //-----------------------------------------------------------------------------
+  34          // InitSYSCLK
+  35          //-----------------------------------------------------------------------------
+  36          //
+  37          // Return Value: none
+  38          // Parameters:   none
+  39          //
+  40          // This routine initializes the system clock to 24 MHz and the USB clock to
+  41          // 48 MHz (USB 2.0 requirement).  The 4x clock multiplier is employed, so
+  42          // the USB clock is 12 MHz * 4 = 48 MHz.  The system clock is set to the 4x
+  43          // oscillator divided by 2, 12 MHz * 4 / 2 = 24 MHz.  Also enables missing
+  44          // clock detector reset (required for this setup).
+  45          //
+  46          // This setup was verified by blinking an LED using the 16-bit TIMER2 and a
+  47          // loop that ran 10 times.  TIMER2 was run from the system clock / 12.
+  48          // Blink Period =  10 * 2^16 / (24 MHz / (2*12)) = 0.655 s
+  49          // (Factor of 2 for two cycles per blink period.)
+  50          //
+  51          //-----------------------------------------------------------------------------
+  52          void InitSYSCLK(void)
+  53          {
+  54   1              // Configure internal oscillator
+  55   1              OSCICN = 0x83;
+C51 COMPILER V8.18   MCUCONFIG                                                             01/01/2011 16:10:25 PAGE 2   
+
+  56   1      
+  57   1              // Set up clock multiplier to allow for a 48 MHz USB clock:
+  58   1              // Reset clock multiplier
+  59   1              CLKMUL = 0x00;
+  60   1      
+  61   1              // Enable multiplier
+  62   1              CLKMUL |= 0x80;
+  63   1      
+  64   1              // Delay for >5us (12MHz * 20ps = 240 clock cycles)
+  65   1              delay = 0;
+  66   1              while (delay < 300) 
+  67   1                      { delay++; }
+  68   1      
+  69   1              // Initialize multiplier
+  70   1              CLKMUL |= 0xC0;
+  71   1      
+  72   1              // Poll for multiplier ready
+  73   1              while ((CLKMUL & MULRDY) != MULRDY) { NOP(); }
+  74   1      
+  75   1              // USB clock = 4*(Int Osc)
+  76   1              // Sys clock = 4*(Int Osc)/2
+  77   1              CLKSEL = 0x02;
+  78   1                                                      
+  79   1              // Enable missing clock detector, required for USB
+  80   1              RSTSRC = 0x04;
+  81   1      }
+  82          
+  83          
+  84          
+  85          
+  86          //-----------------------------------------------------------------------------
+  87          // InitPORT
+  88          //-----------------------------------------------------------------------------
+  89          //
+  90          // Return Value: none
+  91          // Parameters:   none
+  92          //
+  93          // Configure the Crossbar and GPIO ports.
+  94          //
+  95          // P0.0 - SCK (SPI)
+  96          // P0.1 - MISO (SPI)
+  97          // P0.2 - MOSI (SPI)
+  98          // P0.3 - Motor 2 Direction (Stepper Motor Driver)
+  99          // P0.4 - Motor 2 Step (Stepper Motor Driver)
+ 100          // P0.5 - Not Driver Enable (Stepper Motor Driver)
+ 101          // P0.6 - Motor 1 Direction (Stepper Motor Driver)
+ 102          // P0.7 - Motor 1 Step (Stepper Motor Driver)
+ 103          // P1.0 - In TTL
+ 104          // P1.1 - Out TTL
+ 105          // P1.2 - Laser Power On/Off
+ 106          // P1.3 - N/C
+ 107          // P1.4 - Not DAC CS (SPI)
+ 108          // P1.5 - N/C
+ 109          // P1.6 - N/C
+ 110          // P1.7 - Calibration (logical)
+ 111          // P2.0 - Positive Current (logical)
+ 112          // P2.1 - Not ADC CS (SPI)
+ 113          // P2.2 - N/C (LED, push-pull, temporary for testing purposes)
+ 114          // P2.3 - Output Enable
+ 115          // P2.4 - N/C
+ 116          // P2.5 - N/C
+ 117          // P2.6 - Not RAM CS (SPI)
+C51 COMPILER V8.18   MCUCONFIG                                                             01/01/2011 16:10:25 PAGE 3   
+
+ 118          // P2.7 - Not RAM Hold
+ 119          // P3.0 - N/C
+ 120          //
+ 121          //-----------------------------------------------------------------------------
+ 122          void InitPORT(void)
+ 123          {
+ 124   1              // Set all port pins as NOT analog inputs.
+ 125   1              P0MDIN = 0xFF;
+ 126   1              P1MDIN = 0xFF;
+ 127   1              P2MDIN = 0xFF;
+ 128   1              P3MDIN = 0xFF;
+ 129   1      
+ 130   1              // Select push/pull for all port pins
+ 131   1              P0MDOUT = 0xFD;                 // 1111 1101
+ 132   1              P1MDOUT = 0xFF;
+ 133   1              P2MDOUT = 0xFF;
+ 134   1              P3MDOUT = 0xFF;
+ 135   1      
+ 136   1              // Select MISO for Digital In
+ 137   1              P0 = 0x02;                              // 0000 0010
+ 138   1      
+ 139   1              // Select pins to be skipped by port crossbar
+ 140   1              P0SKIP = 0x00;
+ 141   1              P1SKIP = 0x00;
+ 142   1              P2SKIP = 0x00;
+ 143   1      
+ 144   1              // Assign port pins to peripherals using the port crossbar (p. 131)
+ 145   1              // Only SPI selected, automatically assigned:
+ 146   1              // SCK  --> P0.0
+ 147   1              // MISO --> P0.1
+ 148   1              // MOSI --> P0.2
+ 149   1              XBR0 = 0x02;
+ 150   1      
+ 151   1              // Enable crossbar and weak pull-ups
+ 152   1              XBR1 = 0x40;
+ 153   1      
+ 154   1              // Initialize the potentiostat state
+ 155   1              // 1. the SPI Not Chip Select ports to high (P1.4, P2.1, P2.6)
+ 156   1              // 2. the stepper motor Not Enable to high (P0.5)
+ 157   1              // 3. the stepper motors "step" ports to low (P0.4, P0.7)
+ 158   1              // 4. the laser power low (P1.2)
+ 159   1              // 5. the Calibration signal to low (P1.7)
+ 160   1              // 6. the current direction signal Positive to high (P2.0)
+ 161   1              // 7. the Output Enable to low (P2.3)
+ 162   1              // 8. the Not RAM Hold to high (P2.7)
+ 163   1              NADCCS = 1;
+ 164   1              NDACCS = 1;
+ 165   1              NRAMCS = 1;
+ 166   1              NRAMHOLD = 1;
+ 167   1              NDRIVEREN = 1;                          // Enable/disable (0/1) stepper motor driver
+ 168   1                                                                      // A 0 causes current from +12 V to flow!
+ 169   1              LASER = 0;                                      // Disable laser power
+ 170   1              OUTPUTEN = 0;                           // Disable the output until we're ready
+ 171   1              CAL = 0;                                        // Not in calibration state
+ 172   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    104    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+C51 COMPILER V8.18   MCUCONFIG                                                             01/01/2011 16:10:25 PAGE 4   
+
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

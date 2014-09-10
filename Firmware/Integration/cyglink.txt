@@ -1,0 +1,7 @@
+"C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\Integration\Main.obj",
+"C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\Integration\Interrupts.obj",
+"C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\Integration\Globals.obj",
+"C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\Integration\SpiIO.obj",
+"C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\Integration\UsbIO.obj",
+"C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\Integration\UsbDescriptors.obj",
+"C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\Integration\McuIO.obj"  TO "C:\Users\rdherric\Documents\RDH2\Projects\SHArK\trunk\Firmware\Integration\SHArK" RS(256) PL(68) PW(78) 
